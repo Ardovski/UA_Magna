@@ -39,46 +39,33 @@ export interface QualityDistributionBucket {
   total_scrap: number;
 }
 
-export interface FilterOptions {
-  stations: string[];
-  stock_names: string[];
-  work_centers: string[];
-}
-
-export interface DashboardFilters {
-  start: string | null;
-  end: string | null;
-  shift: number[];
-  station_name: string[];
+export interface RecentRecordRow {
+  id: number;
+  prod_date: string | null;
+  shift: number | null;
+  station_name: string | null;
   stock_name: string | null;
-  oee_min: number | null;
-  oee_max: number | null;
-  validation_status: string[];
-  has_issues: boolean | null;
+  oee: number | null;
+  produced_qty: number | null;
+  scrap_qty: number | null;
+  status: string;
+  created_at: string | null;
 }
 
-export const EMPTY_FILTERS: DashboardFilters = {
-  start: null,
-  end: null,
-  shift: [],
-  station_name: [],
-  stock_name: null,
-  oee_min: null,
-  oee_max: null,
-  validation_status: [],
-  has_issues: null,
-};
+export interface TopStationRow {
+  station_name: string;
+  avg_oee: number | null;
+  total_production: number;
+  total_scrap: number;
+  record_count: number;
+}
 
-export function filtersToQuery(f: DashboardFilters): string {
-  const p = new URLSearchParams();
-  if (f.start) p.set("start", f.start);
-  if (f.end) p.set("end", f.end);
-  f.shift.forEach((s) => p.append("shift", String(s)));
-  f.station_name.forEach((s) => p.append("station_name", s));
-  if (f.stock_name) p.set("stock_name", f.stock_name);
-  if (f.oee_min !== null) p.set("oee_min", String(f.oee_min));
-  if (f.oee_max !== null) p.set("oee_max", String(f.oee_max));
-  f.validation_status.forEach((s) => p.append("validation_status", s));
-  if (f.has_issues !== null) p.set("has_issues", String(f.has_issues));
-  return p.toString();
+export interface ProblemShiftRow {
+  prod_date: string | null;
+  shift: number;
+  station_name: string | null;
+  avg_oee: number | null;
+  rejected_count: number;
+  total_production: number;
+  record_count: number;
 }

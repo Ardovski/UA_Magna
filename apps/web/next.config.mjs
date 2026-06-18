@@ -4,6 +4,7 @@
 const backend = process.env.BACKEND_INTERNAL_URL || "http://localhost:8000";
 
 const nextConfig = {
+  output: "standalone",
   reactStrictMode: true,
   async rewrites() {
     return [{ source: "/api/backend/:path*", destination: `${backend}/:path*` }];

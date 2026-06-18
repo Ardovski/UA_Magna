@@ -3,77 +3,91 @@
 import { useQuery } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { queryKeys } from "@/lib/query-keys";
-import {
-  filtersToQuery,
-  type DashboardFilters,
-  type FilterOptions,
-  type KpiCards,
-  type OeeTrendPoint,
-  type QualityDistributionBucket,
-  type ShiftComparisonRow,
-  type StationRankingRow,
+import type {
+  KpiCards,
+  OeeTrendPoint,
+  ProblemShiftRow,
+  QualityDistributionBucket,
+  RecentRecordRow,
+  ShiftComparisonRow,
+  StationRankingRow,
+  TopStationRow,
 } from "./types";
 
-export function useKpis(filters: DashboardFilters) {
+export function useKpis() {
   return useQuery({
-    queryKey: queryKeys.analytics.kpis(filters),
-    queryFn: () => api.get<KpiCards>(`/api/v1/analytics/kpis?${filtersToQuery(filters)}`),
+    queryKey: queryKeys.analytics.kpis(),
+    queryFn: () => api.get<KpiCards>("/api/v1/analytics/kpis"),
   });
 }
 
-export function useOeeTrend(filters: DashboardFilters, days: number = 21) {
+export function useKpisPeriod(start: string | null, end: string | null) {
+  const q = new URLSearchParams();
+  if (start) q.set("start", start);
+  if (end) q.set("end", end);
+  const qs = q.toString();
   return useQuery({
-    queryKey: [...queryKeys.analytics.oeeTrend(filters), days] as const,
+    queryKey: ["analytics", "kpis", "period", start, end] as const,
     queryFn: () =>
-      api.get<OeeTrendPoint[]>(
-        `/api/v1/analytics/oee-trend?${filtersToQuery(filters)}&days=${days}`,
-      ),
+      api.get<KpiCards>(`/api/v1/analytics/kpis${qs ? `?${qs}` : ""}`),
   });
 }
 
-export function useShiftComparison(filters: DashboardFilters) {
+export function useOeeTrend(days: number = 21) {
   return useQuery({
-    queryKey: queryKeys.analytics.shiftComparison(filters),
+    queryKey: [...queryKeys.analytics.oeeTrend(null), days] as const,
+    queryFn: () => api.get<OeeTrendPoint[]>(`/api/v1/analytics/oee-trend?days=${days}`),
+  });
+}
+
+export function useShiftComparison() {
+  return useQuery({
+    queryKey: queryKeys.analytics.shiftComparison(null),
+    queryFn: () => api.get<ShiftComparisonRow[]>("/api/v1/analytics/shift-comparison"),
+  });
+}
+
+export function useStationRanking(limit: number = 10) {
+  return useQuery({
+    queryKey: [...queryKeys.analytics.stationRanking(null), limit] as const,
     queryFn: () =>
-      api.get<ShiftComparisonRow[]>(
-        `/api/v1/analytics/shift-comparison?${filtersToQuery(filters)}`,
-      ),
+      api.get<StationRankingRow[]>(`/api/v1/analytics/station-ranking?limit=${limit}`),
   });
 }
 
-export function useStationRanking(filters: DashboardFilters, limit: number = 10) {
+export function useQualityDistribution() {
   return useQuery({
-    queryKey: [...queryKeys.analytics.stationRanking(filters), limit] as const,
-    queryFn: () =>
-      api.get<StationRankingRow[]>(
-        `/api/v1/analytics/station-ranking?${filtersToQuery(filters)}&limit=${limit}`,
-      ),
+    queryKey: queryKeys.analytics.qualityDistribution(null),
+    queryFn: () => api.get<QualityDistributionBucket[]>("/api/v1/analytics/quality-distribution"),
   });
 }
 
-export function useQualityDistribution(filters: DashboardFilters) {
+export function useRecentRecords(batchId: number | null, limit: number = 20) {
+  const q = new URLSearchParams();
+  if (batchId !== null) q.set("batch_id", String(batchId));
+  q.set("limit", String(limit));
   return useQuery({
-    queryKey: queryKeys.analytics.qualityDistribution(filters),
-    queryFn: () =>
-      api.get<QualityDistributionBucket[]>(
-        `/api/v1/analytics/quality-distribution?${filtersToQuery(filters)}`,
-      ),
+    queryKey: queryKeys.analytics.recentRecords(batchId),
+    queryFn: () => api.get<RecentRecordRow[]>(`/api/v1/analytics/recent-records?${q.toString()}`),
   });
 }
 
-export function useFilterOptions() {
+export function useTopStations(batchId: number | null, limit: number = 10) {
+  const q = new URLSearchParams();
+  if (batchId !== null) q.set("batch_id", String(batchId));
+  q.set("limit", String(limit));
   return useQuery({
-    queryKey: ["analytics", "filter-options"] as const,
-    queryFn: () => api.get<FilterOptions>(`/api/v1/analytics/filter-options`),
-    staleTime: 5 * 60_000,
+    queryKey: queryKeys.analytics.topStations(batchId),
+    queryFn: () => api.get<TopStationRow[]>(`/api/v1/analytics/top-stations?${q.toString()}`),
   });
 }
 
-export function useDashboardData(filters: DashboardFilters) {
-  const kpis = useKpis(filters);
-  const trend = useOeeTrend(filters);
-  const shifts = useShiftComparison(filters);
-  const stations = useStationRanking(filters);
-  const quality = useQualityDistribution(filters);
-  return { kpis, trend, shifts, stations, quality };
+export function useProblemShifts(batchId: number | null, limit: number = 20) {
+  const q = new URLSearchParams();
+  if (batchId !== null) q.set("batch_id", String(batchId));
+  q.set("limit", String(limit));
+  return useQuery({
+    queryKey: queryKeys.analytics.problemShifts(batchId),
+    queryFn: () => api.get<ProblemShiftRow[]>(`/api/v1/analytics/problem-shifts?${q.toString()}`),
+  });
 }

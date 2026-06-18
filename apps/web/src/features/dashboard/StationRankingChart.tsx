@@ -1,57 +1,93 @@
 "use client";
 
+import { Inbox } from "lucide-react";
 import {
   Bar,
   BarChart,
   CartesianGrid,
+  Cell,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
 } from "recharts";
-import type { StationRankingRow } from "./types";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
+import { oeeTone } from "./KpiCard";
+import { useStationRanking } from "./useDashboardData";
 
-export interface StationRankingChartProps {
-  data: StationRankingRow[];
-  loading?: boolean;
+function oeeBarColor(v: number | null): string {
+  if (v === null) return "hsl(var(--muted))";
+  if (v >= 85) return "hsl(var(--oee-good))";
+  if (v >= 60) return "hsl(var(--oee-mid))";
+  return "hsl(var(--oee-low))";
 }
 
-export function StationRankingChart({ data, loading }: StationRankingChartProps) {
-  if (loading) {
-    return <div className="flex h-72 items-center justify-center text-sm text-muted-foreground">Yükleniyor…</div>;
-  }
-  if (data.length === 0) {
-    return <div className="flex h-72 items-center justify-center text-sm text-muted-foreground">Veri yok.</div>;
-  }
-  const shaped = data
-    .slice()
-    .sort((a, b) => (a.avg_oee ?? 0) - (b.avg_oee ?? 0))
-    .map((r) => ({
-      station_name: r.station_name,
-      avg_oee: r.avg_oee ?? 0,
-      total_production: r.total_production,
-    }));
+export function StationRankingChart() {
+  const q = useStationRanking(10);
+  const rows = (q.data ?? []).slice(0, 10);
+
   return (
-    <ResponsiveContainer width="100%" height={Math.max(288, shaped.length * 36)}>
-      <BarChart layout="vertical" data={shaped} margin={{ top: 8, right: 16, bottom: 8, left: 24 }}>
-        <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-        <XAxis type="number" domain={[0, 100]} stroke="hsl(var(--muted-foreground))" fontSize={12} />
-        <YAxis
-          type="category"
-          dataKey="station_name"
-          stroke="hsl(var(--muted-foreground))"
-          fontSize={12}
-          width={110}
-        />
-        <Tooltip
-          contentStyle={{
-            backgroundColor: "hsl(var(--card))",
-            border: "1px solid hsl(var(--border))",
-            color: "hsl(var(--card-foreground))",
-          }}
-        />
-        <Bar dataKey="avg_oee" name="OEE %" fill="hsl(var(--chart-2))" radius={[0, 4, 4, 0]} />
-      </BarChart>
-    </ResponsiveContainer>
+    <Card className="transition-shadow hover:shadow-md">
+      <CardHeader>
+        <CardTitle className="text-sm font-medium text-muted-foreground">
+          İstasyon Sıralaması (Top 10)
+        </CardTitle>
+      </CardHeader>
+      <CardContent>
+        {q.isLoading ? (
+          <Skeleton className="h-72 w-full" />
+        ) : rows.length === 0 ? (
+          <div className="flex h-72 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
+            <Inbox className="h-8 w-8 opacity-60" />
+            <p>Veri yok</p>
+          </div>
+        ) : (
+          <ResponsiveContainer
+            width="100%"
+            height={Math.max(288, rows.length * 36)}
+          >
+            <BarChart
+              layout="vertical"
+              data={rows}
+              margin={{ top: 8, right: 16, bottom: 8, left: 24 }}
+            >
+              <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+              <XAxis
+                type="number"
+                domain={[0, 100]}
+                stroke="hsl(var(--muted-foreground))"
+                fontSize={12}
+                tickLine={false}
+              />
+              <YAxis
+                type="category"
+                dataKey="station_name"
+                stroke="hsl(var(--muted-foreground))"
+                fontSize={12}
+                tickLine={false}
+                width={110}
+              />
+              <Tooltip
+                contentStyle={{
+                  backgroundColor: "hsl(var(--card))",
+                  border: "1px solid hsl(var(--border))",
+                  color: "hsl(var(--card-foreground))",
+                  borderRadius: 6,
+                }}
+                formatter={(value: number) => [`${value.toFixed(1)}%`, "OEE"]}
+              />
+              <Bar dataKey="avg_oee" name="OEE %" radius={[0, 4, 4, 0]}>
+                {rows.map((r) => (
+                  <Cell key={r.station_name} fill={oeeBarColor(r.avg_oee)} />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        )}
+      </CardContent>
+    </Card>
   );
 }
+
+export { oeeTone };
