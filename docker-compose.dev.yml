@@ -1,0 +1,28 @@
+services:
+  api:
+    volumes:
+      - ./apps/api:/app
+      - sqlite-data:/app/var
+    command: ["--reload"]
+    user: "0"
+    environment:
+      APP_ENV: development
+      DATABASE_URL: sqlite:////app/var/app.db
+      LOG_LEVEL: DEBUG
+
+  web:
+    volumes:
+      - ./apps/web:/app
+      - web-node-modules:/app/node_modules
+      - /app/.next
+    command: ["sh", "-c", "if [ ! -d node_modules/.bin/next ]; then npm install --no-audit --no-fund; fi; npm run dev"]
+    user: "0"
+    environment:
+      NODE_ENV: development
+      APP_ENV: development
+      BACKEND_INTERNAL_URL: http://api:8000
+      HOME: /tmp
+      npm_config_cache: /tmp/.npm
+
+volumes:
+  web-node-modules:

@@ -1,0 +1,10 @@
+.git
+.venv
+node_modules
+.next
+var
+__pycache__
+*.pyc
+ai_usage/transcripts/*
+.docs
+.roadmap
