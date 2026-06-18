@@ -18,9 +18,18 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, autocommit=False, clas
 
 
 def get_db() -> Iterator[Session]:
-    """FastAPI dependency — istek başına session açar/kapatır."""
+    """FastAPI dependency — istek başına session açar.
+
+    Başarılı istekte commit, hata durumunda rollback eder. Aksi halde
+    `autocommit=False` ile session kapanışında transaction rollback olur ve
+    yazmalar (import, manuel düzelt/reddet/onayla) kalıcı olmaz.
+    """
     db = SessionLocal()
     try:
         yield db
+        db.commit()
+    except Exception:
+        db.rollback()
+        raise
     finally:
         db.close()

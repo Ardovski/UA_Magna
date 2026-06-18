@@ -1,13 +1,14 @@
 /** @type {import('next').NextConfig} */
-// Dev'de CORS'suz çağrı için /api/backend/* → FastAPI proxy.
-// Frontend client base'i "/api/backend" veya NEXT_PUBLIC_API_URL olabilir.
+// Dev'de CORS'suz, sıfır-config çağrı için /api/v1/* → FastAPI proxy.
+// Client same-origin "/api/v1/..." çağırır; burada FastAPI'ye yönlendirilir.
+// Doğrudan (cross-origin) bağlanmak istersen NEXT_PUBLIC_API_URL set et (örn. http://localhost:8000).
 const backend = process.env.BACKEND_INTERNAL_URL || "http://localhost:8000";
 
 const nextConfig = {
   output: "standalone",
   reactStrictMode: true,
   async rewrites() {
-    return [{ source: "/api/backend/:path*", destination: `${backend}/:path*` }];
+    return [{ source: "/api/v1/:path*", destination: `${backend}/api/v1/:path*` }];
   },
 };
 
