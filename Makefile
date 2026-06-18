@@ -28,8 +28,7 @@ C_GREY   := \033[90m
 .PHONY: help setup setup-api setup-web env dev dev-api dev-web \
         db-init db-reset seed test test-api test-web lint lint-api lint-web \
         format typecheck check clean clean-db ai-sync hooks ai-prompt \
-        ai-backup doctor \
-        docker-build docker-up docker-down docker-logs docker-smoke
+        ai-backup doctor
 
 # --- Yardım ---------------------------------------------------------------
 help: ## Bu yardım menüsünü göster (kategorize)
@@ -40,12 +39,6 @@ help: ## Bu yardım menüsünü göster (kategorize)
 	@printf "    $(C_CYAN)%-12s$(C_RESET) %s\n" dev      "api (:8000) + web (:3000) birlikte çalıştır"
 	@printf "    $(C_CYAN)%-12s$(C_RESET) %s\n" dev-api  "Sadece FastAPI (reload, :8000)"
 	@printf "    $(C_CYAN)%-12s$(C_RESET) %s\n" dev-web  "Sadece Next.js (:3000)"
-	@printf "\n$(C_BOLD)  Docker$(C_RESET)\n"
-	@printf "    $(C_CYAN)%-12s$(C_RESET) %s\n" docker-build  "Image'ları build et (api + web)"
-	@printf "    $(C_CYAN)%-12s$(C_RESET) %s\n" docker-up     "Servisleri arka planda başlat"
-	@printf "    $(C_CYAN)%-12s$(C_RESET) %s\n" docker-down   "Servisleri durdur (volume'ler korunur)"
-	@printf "    $(C_CYAN)%-12s$(C_RESET) %s\n" docker-logs   "Servis loglarını takip et (-f)"
-	@printf "    $(C_CYAN)%-12s$(C_RESET) %s\n" docker-smoke  "Uçtan uca smoke test (clean + build + curl + logs)"
 	@printf "\n$(C_BOLD)  Veritabanı$(C_RESET)\n"
 	@printf "    $(C_CYAN)%-12s$(C_RESET) %s\n" db-init  "SQLite şemasını oluştur"
 	@printf "    $(C_CYAN)%-12s$(C_RESET) %s\n" db-reset "DB'yi sil + yeniden oluştur"
@@ -168,19 +161,3 @@ doctor: ## Ortam kontrolü (python, node, npm sürümleri)
 	@echo "python3: $$(python3 --version 2>&1)"
 	@echo "node:    $$(node --version 2>&1)"
 	@echo "npm:     $$(npm --version 2>&1)"
-
-# --- Docker ---------------------------------------------------------------
-docker-build: ## Image'ları build et (api + web)
-	docker compose build
-
-docker-up: ## Servisleri arka planda başlat (magna-sqlite-data named volume korunur)
-	docker compose up -d
-
-docker-down: ## Servisleri durdur (volume'ler korunur, veri kaybı yok)
-	docker compose down
-
-docker-logs: ## Servis loglarını takip et
-	docker compose logs -f
-
-docker-smoke: ## Uçtan uca smoke test (clean + build + up + curl + logs + down)
-	@bash scripts/docker-smoke.sh
