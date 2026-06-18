@@ -3,7 +3,7 @@
 > Tek bakışta ilerleme. `[x]` yapıldı · `[ ]` yapılmadı · `[~]` kısmen/devam.
 > Her madde case study gereksinimine bağlı; güncel tutulur.
 
-**Son güncelleme:** 2026-06-17
+**Son güncelleme:** 2026-06-18
 
 ---
 
@@ -35,14 +35,14 @@
 - [x] `make setup` + `make dev` doğrulandı (npm install + pip install geçer; api :8000, web :3000)
 
 ## Faz 1 — Veri İçe Aktarma (Import) · 5.1
-- [ ] CSV seç (drag-and-drop **veya** file picker) — backend hazır, UI basit landing
+- [x] CSV seç (drag-and-drop **veya** file picker) — `ImportDropzone` (drag + "Dosya Seç")
 - [x] Yükleme öncesi önizleme (ilk 10 satır) — `POST /api/v1/imports/preview`
-- [ ] Yükleme sırasında ilerleme durumu — UI eksik
+- [~] Yükleme sırasında ilerleme durumu — yükleme spinner'ı var, yüzde göstergesi yok
 - [x] CSV parse (pandas) + normalize (tarih/ondalık/yüzde ölçeği)
 - [x] SQLite'a import (`import_batches` + `production_records`)
 - [x] `file_hash` ile aynı dosya duplicate kontrolü
-- [x] Import özeti: toplam / başarılı / reddedilen+sebep / şüpheli
-- [~] Import özetinde **kalite sorunları dökümü** (kategori bazında) — validation ayrı çalışıyor
+- [x] Import özeti: toplam / başarılı / reddedilen+sebep / şüpheli (`ImportSummaryPanel`)
+- [x] Import özetinde **kalite sorunları dökümü** (kategori + severity) — import'ta otomatik validasyon
 - [ ] *(Tercih)* Birden fazla CSV birleştirip yükleme
 
 ## Faz 2 — Validasyon Motoru · 5.4 (kritik · ağırlık %25)
@@ -53,14 +53,14 @@
 - [x] Kategori D: Duplicate (V-D01…D04) — 4 kural
 - [x] Kategori E: Format (V-F01…F06) — 6 kural, normalize
 - [x] Kategori F: Domain/imkânsız (V-X01…X06) — 6 kural
-- [~] Otomatik validasyon — engine var, ingestion sonrası otomatik tetikleme CLI ile (`make validate` benzeri yok; UI "Tüm kayıtları doğrula" butonu var)
+- [x] Otomatik validasyon — CSV import'unda otomatik çalışır (`import_csv` → `run_validation`, kayıt status'leri set edilir); UI "Tüm kayıtları doğrula" butonu da var
 - [x] Validation report: record_id + hata tipi + alan + önerilen aksiyon
 - [x] Severity/aksiyon ayrımı (reject vs warn) — yanlış pozitif önleme
 - [x] Şüpheli kayıtları toplu görüntüleme (UI — sekmeli)
 - [x] Manuel düzeltme **veya** reddetme (UI — Drawer + audit trail)
 - [x] *(Tercih)* Düzeltme geçmişi — audit trail (`record_edits`)
 - [x] *(Bonus)* Sistemik vs tekil kayıt ayrımı (`report.py` — `validation_systemic_ratio` eşiği)
-- [ ] Her kural için birim test (pozitif + negatif) — **en kritik borç**
+- [~] Birim testler var (`test_validation.py`: 12 temsilci kural pozitif+negatif, 6 kategoriden + engine/batch testleri; `test_ingestion/oee/sync` dahil 38 test) — ama 43 kuralın tamamı değil
 
 ## Faz 3 — Analitik & Dashboard · 5.3
 - [x] OEE yeniden hesap (`oee_recomputed` motoru; service tarafında)
@@ -131,7 +131,6 @@
 - [ ] Çoklu dil (i18n)
 - [ ] Çok-kullanıcı auth
 - [ ] Alembic şema migration
-- [ ] Docker/Helm prod deploy
 - [ ] CI/CD pipeline (GitHub Actions)
 
 ---
@@ -141,8 +140,8 @@
 | Faz | Tamamlanan / Toplam |
 |-----|---------------------|
 | Faz 0 | 26 / 26 ✅ |
-| Faz 1 | 6 / 9 (özet: önizleme/import/duplicate ✅; drag-drop/progress/birleştirme ❌) |
-| Faz 2 | 13 / 16 (motor + 47 kural ✅; pytest ❌) |
+| Faz 1 | 7 / 9 (drag-drop/önizleme/import/duplicate/kalite-dökümü ✅; progress ~ ; çoklu-CSV ❌) |
+| Faz 2 | 14 / 16 (motor + 47 kural + otomatik validasyon ✅; tüm-kural pytest ~) |
 | Faz 3 | 6 / 6 ✅ |
 | Faz 4 | 9 / 9 ✅ |
 | Faz 5 | 12 / 13 (circuit breaker ❌) |
