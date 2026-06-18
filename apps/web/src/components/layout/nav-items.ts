@@ -7,8 +7,8 @@ export interface NavItem {
 }
 
 export const NAV_ITEMS: NavItem[] = [
-  { href: "/", label: "Dashboard", description: "KPI + grafikler" },
-  { href: "/import", label: "Import", description: "CSV yükle" },
+  { href: "/", label: "Import", description: "CSV yükle" },
+  { href: "/dashboard", label: "Dashboard", description: "KPI + grafikler" },
   { href: "/validation", label: "Validation", description: "Issue yönetimi" },
   { href: "/records", label: "Records", description: "Filtreli tablo" },
   { href: "/sync", label: "Sync", description: "Hedef API" },
