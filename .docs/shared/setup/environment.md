@@ -21,7 +21,8 @@
 ## Frontend — `frontend/.env.local` (`.env.local.example`'dan)
 | Değişken | Açıklama | Örnek |
 |----------|----------|-------|
-| `NEXT_PUBLIC_API_URL` | Backend base (tarayıcıdan erişilen) | `http://localhost:8000` |
+| `BACKEND_INTERNAL_URL` | Next rewrite proxy hedefi (`/api/v1/*` → FastAPI). `.env.local.example`'da aktif olan tek değişken; sıfır-config kurulum için yeterli. | `http://localhost:8000` |
+| `NEXT_PUBLIC_API_URL` (opsiyonel) | Boşsa (varsayılan) client `/api/v1/...` relative çağırır → Next rewrite FastAPI'ye proxy'ler (CORS yok). Sadece doğrudan cross-origin için doldurulur. | (boş) / `http://localhost:8000` |
 
 > `NEXT_PUBLIC_*` tarayıcıya gömülür → **buraya asla secret koyma**. Hedef API key sadece backend.
 

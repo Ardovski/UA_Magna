@@ -42,4 +42,5 @@ Kaynak veride A, P, Q, OEE **zaten dolu** geliyor. Ama gerçek MES verisi tutars
 
 ## Tolerans Politikası
 Float karşılaştırmalarında **±1.0 yüzde puan** tolerans (yuvarlama/MES hassasiyeti için).
-Bu eşik `app/features/validation/rules` içinde merkezi sabit; UI'dan ayarlanabilir (bonus).
+Bu eşik `app/core/config.py` içinde `validation_tolerance_pct` ayarıdır (varsayılan 1.0);
+RuleContext üzerinden consistency kurallarına enjekte edilir ve `.env` ile değiştirilebilir.

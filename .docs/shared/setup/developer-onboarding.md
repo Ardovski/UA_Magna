@@ -43,4 +43,4 @@ Veya UI'dan: `/import` sayfasından CSV yükle.
 - Mimari → [`../architecture/overview.md`](../architecture/overview.md)
 - Validasyon kuralları → [`validation-rules.md`](../domain/validation-rules.md)
 - Plan/CHECKLIST → [`../../.roadmap/`](../../.roadmap/)
-- Ortam değişkenleri → [`env.md`](env.md)
+- Ortam değişkenleri → [`environment.md`](environment.md)

@@ -1,6 +1,6 @@
 # Veritabanı Şeması — SQLite
 
-5 tablo: import takibi, üretim kayıtları, validasyon issue'ları, düzeltme audit trail'i, sync log.
+6 tablo: import takibi, üretim kayıtları, validasyon issue'ları (şema var, runtime'da boş), düzeltme audit trail'i, sync log, uygulama ayarları (key-value; aktif batch seçimi için `active_batch_id`).
 
 ## Tablolar
 
@@ -15,7 +15,7 @@
 | imported_rows | int | başarıyla içe alınan |
 | rejected_rows | int | reddedilen |
 | suspect_rows | int | şüpheli (uyarılı) |
-| status | text | `processing` / `completed` / `failed` |
+| status | text | `processing` / `completed` / `failed` / `duplicate` (duplicate = `file_hash` daha önce import edilmiş; satırlar yine de import edilir, sadece batch durumu duplicate) |
 
 ### `production_records` — ana veri (18 kolon + meta)
 | Alan | Tip | Not |
@@ -40,7 +40,13 @@
 **Index:** `(prod_date, shift, station_name)`, `status`, `import_batch_id`.
 **Unique:** `row_hash` (içerik-bazlı duplicate koruması).
 
-### `validation_issues` — kayıt başına 0..N issue
+### `validation_issues` — kayıt başına 0..N issue (şema var, runtime'da boş)
+
+> **Not:** Bu tablo şemada tanımlı ancak **RUNTIME'DA HİÇ YAZILMAZ** (her zaman boş). Validasyon
+> sonuçları engine'de canlı (`run_validation`) hesaplanır; tek kaynak doğruluk in-memory motor
+> çıktısıdır (`validation/api.py:48-51`). `/issues` endpoint'i bu tablodan değil canlı motordan okur.
+> Yalnız türetilen kayıt durumu `production_records.status`'a yazılır.
+
 | Alan | Tip | Not |
 |------|-----|-----|
 | id | int PK | |
@@ -71,9 +77,9 @@
 | id | int PK | |
 | prod_date | date | gönderim (gün) |
 | shift | int | gönderim (vardiya) |
-| idempotency_key | text | **unique** — `{prod_date}:{shift}` |
+| idempotency_key | text | **unique** (`uq_sync_idempotency_key`, String(40)) — `{prod_date}:{shift}` |
 | payload_hash | text | agrege payload hash'i (içerik değişti mi) |
-| status | text | `pending` / `success` / `failed` |
+| status | text | `pending` / `success` / `failed` / `retrying` |
 | http_status | int | hedef API yanıt kodu |
 | target_submission_id | int | hedef sistemdeki `submission_id` |
 | response_body | text | (secret'sız) yanıt |
@@ -83,11 +89,19 @@
 
 **Unique:** `idempotency_key` → aynı (gün, vardiya) iki kez başarılı gönderilmez.
 
+### `app_settings` — uygulama ayarları (key-value)
+| Alan | Tip | Not |
+|------|-----|-----|
+| key | text PK | String(64) — örn. `active_batch_id` |
+| value | text | ayar değeri |
+| updated_at | datetime | |
+
 ## İlişkiler (özet)
 ```
-import_batches 1───∞ production_records 1───∞ validation_issues
+import_batches 1───∞ production_records 1───∞ validation_issues  (şema var, runtime'da boş)
                                         1───∞ record_edits
 sync_submissions  (prod_date, shift) ─ agrege ── production_records[status=valid]
+app_settings  (key-value; active_batch_id)
 ```
 
 ## DBML (görselleştirme için)
@@ -102,6 +116,7 @@ Table production_records {
   status text
   row_hash text [unique]
 }
+// validation_issues: şemada tanımlı ancak runtime'da hiç yazılmaz (her zaman boş)
 Table validation_issues {
   id int [pk]
   record_id int [ref: > production_records.id]

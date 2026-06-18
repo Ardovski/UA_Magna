@@ -122,9 +122,9 @@ Bu, "yanlış pozitif puan kaybettirir" uyarısına uyumu sağlar.
 ## Kural Motoru Yerleşimi
 `backend/app/features/validation/`:
 - `engine.py` — tüm kuralları kayıt üzerinde çalıştırır, issue listesi üretir.
-- `rules/` — her kategori/kural ayrı, saf fonksiyon (`(record) -> Issue | None`), birim test'li.
+- `rules/` — her kategori ayrı dosya (`missing.py`, `range_.py`, `consistency.py`, `duplicate.py`, `format_.py`, `domain.py`); her kural `Rule` tabanlı bir sınıf, `check(record, ctx) -> Issue | None` (bazıları liste de döndürür), birim test'li.
 - `report.py` — issue'ları sınıflandırır, import özeti + indirilebilir rapor (bonus) üretir.
 
 ## Test Stratejisi
 Her kural için pozitif (yakalamalı) + negatif (yakalamamalı = yanlış pozitif önleme) test.
- `backend/tests/unit/test_rules_*.py`. (Kod kalitesi %15 + bonus "validasyon birim testleri".)
+ `backend/tests/test_validation.py` (parametrize ile kural başına pozitif+negatif vakalar + 2 engine end-to-end testi). (Kod kalitesi %15 + bonus "validasyon birim testleri".)

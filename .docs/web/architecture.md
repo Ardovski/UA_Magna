@@ -12,33 +12,39 @@
 ## Sayfa Yapısı (App Router)
 ```
 src/app/
-├── layout.tsx            # kök layout: tema sağlayıcı, sidebar, query provider
-├── page.tsx              # Dashboard (KPI + grafikler)
-├── import/page.tsx       # CSV yükleme + önizleme + import özeti
-├── records/page.tsx      # filtre + tablo + CSV export
-├── validation/page.tsx   # şüpheli kayıtlar + düzelt/reddet + audit
-└── sync/page.tsx         # (gün, vardiya) gönderim + retry + geçmiş
+├── layout.tsx                       # kök layout: tema sağlayıcı, query provider
+├── providers.tsx                    # client provider'lar
+└── (dashboard)/                     # route group
+    ├── layout.tsx                   # sidebar + uygulama kabuğu
+    ├── page.tsx                     # / → Import (ImportRoute) — boş DB'de açılış akışı
+    ├── dashboard/page.tsx           # Dashboard (KPI + grafikler)
+    ├── records/page.tsx             # filtre + tablo + CSV export
+    ├── validation/page.tsx          # şüpheli kayıtlar + düzelt/reddet + audit
+    └── sync/page.tsx                # (gün, vardiya) gönderim + retry + geçmiş
 ```
 
 ## Feature-bazlı Organizasyon
 ```
-src/features/<feature>/
-├── components/    # feature'a özel bileşenler
-├── hooks/         # useImport, useValidationIssues, useSyncStatus ...
-├── api/           # bu feature'ın FastAPI çağrıları (TanStack Query)
-└── types.ts
+src/features/<feature>/        # DÜZ dosya yapısı (alt klasör yok)
+├── index.ts                   # PUBLIC API — dışarıya yalnız buradan açılır
+├── <Feature>Page.tsx          # ve diğer PascalCase bileşenler (ImportDropzone.tsx ...)
+├── use<Feature>.ts            # TanStack Query hook'ları (FastAPI çağrıları burada)
+├── types.ts                   # feature'a özel tipler
+└── (örn. mergeSummaries.ts gibi yardımcılar)
 ```
 Feature'lar: `import`, `dashboard`, `records`, `validation`, `sync`.
 
 ## API İletişimi
-- `src/lib/api/client.ts` — tek tip fetch wrapper (base URL = `NEXT_PUBLIC_API_URL`).
-- `next.config.mjs` rewrites → `/api/backend/*` ⇒ `http://localhost:8000/*` (CORS'suz dev).
+- `src/lib/api/client.ts` — tek tip fetch wrapper (base URL = `env.apiUrl`, `@/lib/env`'den).
+  Varsayılan boş string → same-origin `/api/v1/...` çağrıları; cross-origin için `NEXT_PUBLIC_API_URL` set edilir.
+  Ayrıca `api.upload` / `uploadWithProgress` (XHR ile gerçek yükleme ilerlemesi).
+- `next.config.mjs` rewrites → `/api/v1/:path*` ⇒ `${BACKEND_INTERNAL_URL || http://localhost:8000}/api/v1/:path*` (same-origin proxy, CORS'suz dev).
 - Tüm sunucu mutasyonları (import, fix, sync) TanStack Query `useMutation` ile.
 
 ## Bileşen Katmanları
 1. `components/ui/*` — shadcn primitive'leri (Button, Card, Table, Dialog, Slider, Toast...).
-2. `features/*/components/*` — domain bileşenleri (ValidationIssueRow, OeeTrendChart, KpiCard...).
-3. `app/*/page.tsx` — sayfa kompozisyonu.
+2. `features/*/*.tsx` — domain bileşenleri (IssueList, OeeTrendChart, KpiCard...).
+3. `app/(dashboard)/**/page.tsx` — sayfa kompozisyonu.
 
 ## UI/UX Öncelikleri (case %10)
 - **Net hata bildirimi:** validation report tablosu (record_id, hata tipi, alan, aksiyon) +

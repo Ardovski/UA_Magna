@@ -9,7 +9,7 @@ make dev-api          # http://localhost:8000/docs
 
 # veya elle:
 cd backend
-../../backend/.venv/bin/uvicorn app.main:app --reload --port 8000
+../backend/.venv/bin/uvicorn app.main:app --reload --port 8000
 ```
 
 ## Yapı
@@ -18,15 +18,15 @@ app/
 ├── main.py          # giriş, router mount, CORS
 ├── core/            # config (.env), logging, errors
 ├── db/              # SQLAlchemy session, models, init_db
-├── schemas/         # Pydantic I/O modelleri
+├── schemas/         # boş placeholder; Pydantic I/O modelleri feature başına features/*/schemas.py altında
 ├── features/        # ingestion · validation · analytics · records · sync
 └── api/v1/          # HTTP router'ları
 tests/               # pytest (özellikle validation)
-var/                 # runtime SQLite DB (gitignore'lu)
+# runtime SQLite DB repo kökünde: ../db/app.db (app/core/config.py, gitignore'lu)
 ```
 
-Mimari: [`../../.docs/api/architecture.md`](../../.docs/api/architecture.md) ·
-Endpoint'ler: [`../../.docs/api/endpoints.md`](../../.docs/api/endpoints.md)
+Mimari: [`../.docs/api/architecture.md`](../.docs/api/architecture.md) ·
+Endpoint'ler: [`../.docs/api/endpoints.md`](../.docs/api/endpoints.md)
 
 ## Test
 ```bash

@@ -26,13 +26,14 @@
 ## Uçtan Uca Veri Akışı
 
 ```
-1. IMPORT      Kullanıcı CSV seçer  önizleme  POST /imports
+1. IMPORT      Kullanıcı CSV seçer → önizleme (POST /api/v1/imports/preview) → POST /api/v1/imports/import
                   pandas ile parse  normalize (tarih/ondalık format)
                   import_batches kaydı + row_hash ile duplicate kontrol
 
-2. VALIDATE    Her satır kural motorundan geçer (6 kategori, 30+ kural)
-                  validation_issues tablosuna yazılır (rule_id, severity, action)
-                  kayıt status: valid | suspect | rejected
+2. VALIDATE    Her satır kural motorundan geçer (6 kategori, 43 kural)
+                  Issue'lar persist EDİLMEZ — validation_issues tablosu şemada var
+                  ama hiç yazılmaz; sonuçlar her istekte run_validation ile canlı hesaplanır.
+                  Yalnız türetilen status (valid | suspect | rejected) production_records.status'a yazılır
                   import özeti döner (toplam/başarılı/şüpheli/red + kalite dökümü)
 
 3. REVIEW      Kullanıcı şüpheli kayıtları görür  manuel düzelt / reddet / onayla
@@ -42,7 +43,9 @@
                   dashboard grafikleri + filtreleme (records)
 
 5. SYNC        Sadece status=valid kayıtlar (gün, vardiya) bazında AGREGE edilir
-                  idempotency key ile POST /api/v1/submit (retry/backoff)
+                  /api/v1/sync/submit targets[] {production_date, shift} alır (çok-grup hedefli),
+                  202 Accepted döner; gönderim arka planda (BackgroundTask) hedef MES
+                  /api/v1/submit'e idempotency key + retry/backoff ile yapılır
                   sync_submissions log (başarı/başarısız, target_submission_id)
 ```
 
@@ -52,7 +55,7 @@
 |--------|-----------|--------|
 | **Next.js (web)** | Görsel, etkileşim, form, grafik, hata gösterimi | İş kuralı, secret, DB |
 | **FastAPI (api)** | Import, validasyon, analitik, sync, persistence | — |
-| **SQLite** | Kalıcı veri: kayıtlar, issue'lar, edit log, sync log | — |
+| **SQLite** | Kalıcı veri: kayıtlar (+status), edit log, sync log (validation_issues şemada var ama doldurulmaz) | — |
 | **Hedef API** | Dışarıda; sadece temiz veriyi alır | — |
 
 ## Tasarım İlkeleri

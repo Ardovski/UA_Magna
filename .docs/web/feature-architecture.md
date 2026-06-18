@@ -15,14 +15,18 @@ app  →  feature  →  shared        (yalnız bu yön; ters yön yasak)
 ## Feature İçi Yapı (public API)
 ```
 src/features/<feature>/
-├── index.ts        # PUBLIC API — dışarıya yalnız buradan açılır
-├── components/     # feature'a özel bileşenler (PascalCase.tsx)
-├── hooks/          # useX.ts (TanStack Query)
-├── api/            # bu feature'ın FastAPI çağrıları
-└── types.ts
+├── index.ts            # PUBLIC API — dışarıya yalnız buradan açılır
+├── <Feature>Page.tsx   # ve diğer feature'a özel bileşenler (PascalCase.tsx)
+├── use<Feature>.ts     # TanStack Query hook'ları (FastAPI çağrıları burada)
+├── types.ts            # feature'a özel tipler
+└── (örn. mergeSummaries.ts gibi yardımcılar)
 ```
+Yapı **düz** (flat): bileşenler, hook'lar ve yardımcılar `components/`/`hooks/`/`api/` alt
+dizinleri olmadan doğrudan feature kökünde durur; FastAPI çağrıları ayrı bir `api/` klasörü yerine
+`use*.ts` hook'larının içinde yapılır.
+
 Dışarıdan kullanım: `import { X } from "@/features/<feature>"` (index üzerinden). Derin import
-(`@/features/<feature>/components/...`) **yasak**.
+(`@/features/<feature>/<Bileşen>...`) **yasak**.
 
 ## Shared Yapısı (ortak)
 | Dizin | İçerik |
@@ -40,7 +44,7 @@ Dışarıdan kullanım: `import { X } from "@/features/<feature>"` (index üzeri
 | Yalnız bir feature kullanıyor | o feature içinde |
 | İki+ feature kullanıyor | **shared** |
 | shadcn bileşeni | `components/ui` |
-| FastAPI çağrısı (feature'a özel) | `features/<f>/api` |
+| FastAPI çağrısı (feature'a özel) | `features/<f>/use*.ts` hook'u |
 | Ortak yardımcı (örn. `formatDate`) | `lib` |
 | Paylaşılan domain tipi (`ProductionRecord`) | `types/domain.ts` |
 | İki feature'ın paylaştığı filtre state (dashboard + records) | `stores` |

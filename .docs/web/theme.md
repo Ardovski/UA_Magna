@@ -79,10 +79,17 @@ modifier'ları (`bg-primary/50`) çalışır.
     --border: 217 33% 20%;
     --input: 217 33% 20%;
     --ring: 213 27% 84%;
+    --secondary: 217 33% 17%;
+    --accent: 217 33% 17%;
     /* domain token'ları dark'ta biraz parlaklaştırılır */
     --success: 142 64% 52%;
+    --success-foreground: 0 0% 100%;
     --warning: 38 92% 58%;
     --destructive: 0 72% 58%;
+    --info: 217 91% 68%;
+    --oee-good: 142 64% 52%;
+    --oee-mid: 38 92% 58%;
+    --oee-low: 0 72% 58%;
   }
 }
 ```
@@ -104,6 +111,7 @@ export default {
         background: hsl("background"),
         foreground: hsl("foreground"),
         card: { DEFAULT: hsl("card"), foreground: hsl("card-foreground") },
+        popover: { DEFAULT: hsl("card"), foreground: hsl("card-foreground") },
         primary: { DEFAULT: hsl("primary"), foreground: hsl("primary-foreground") },
         secondary: { DEFAULT: hsl("secondary"), foreground: hsl("foreground") },
         muted: { DEFAULT: hsl("muted"), foreground: hsl("muted-foreground") },

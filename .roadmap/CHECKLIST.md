@@ -15,13 +15,13 @@
 - [x] `.env.example` (backend secret'ları, placeholder)
 - [x] Kök `package.json` (workspaces)
 - [x] `.editorconfig`, `.nvmrc`
-- [x] Kök `README.md` (deliverable — zorunlu bölümler + 47 kural tablosu + dürüst eksik listesi)
+- [x] Kök `README.md` (deliverable — zorunlu bölümler + 43 kural tablosu + dürüst eksik listesi)
 - [x] Backend scaffold boot (`app/main.py`, `core/config.py`, `/health`)
 - [x] Frontend scaffold boot (Next.js + Tailwind + providers + landing)
 - [x] `tailwind.config.ts` + `globals.css` (özel token'lar — severity/OEE/vardiya/grafik)
 - [x] `next.config.mjs` proxy + `components.json` (shadcn init konfig)
 - [x] shadcn/ui primitives (Button, Card, Input, Badge, Checkbox, Select, Skeleton, Tabs, Toast, Slider) — feature başına sade tutulmuş
-- [x] Backend core (logging, errors) + DB katmanı (5 tablo, session, init_db) + v1 router
+- [x] Backend core (logging, errors) + DB katmanı (6 tablo, session, init_db) + v1 router
 - [x] Frontend lib temeli (api client, env, constants, query-keys, domain types)
 - [x] `.docs` yapısı (shared / api / web) + dokümantasyon standardı + profesyonelleştirme
 - [x] İsimlendirme standartları (`.docs/shared/conventions/naming.md`)
@@ -106,7 +106,7 @@
   - [x] Hızlı kurulum (komut-komut)
   - [x] Hızlı çalıştırma
   - [ ] Ekran görüntüleri (placeholder — case teslim sonrası `ai_usage/screenshots/`)
-  - [x] Tespit edilen hata tipleri + örnekler (47 kural 6 kategori tablosu)
+  - [x] Tespit edilen hata tipleri + örnekler (43 kural 6 kategori tablosu)
   - [x] API entegrasyon akışı
   - [x] Kullanılan kütüphaneler + gerekçe
   - [x] Yapamadıklarım / vakit yetmeyenler (dürüst liste)
@@ -119,7 +119,7 @@
 
 ## AI Kullanım Şeffaflığı · §8 (%5)
 - [x] `ai_usage/` yapısı (prompts / transcripts / screenshots) + `_TEMPLATE.md`
-- [x] Otomasyon: `make ai-prompt` (şablon) + `make ai-export` (transcript) + opt-in log hook
+- [x] Otomasyon: `make ai-prompt` (şablon) + `make ai-backup` (transcript) + opt-in log hook
 - [x] Prompt-bazlı dosyalar (7 prompt kayıtlı: db schema, ingestion, validation engine, validation schema sync, records, analytics, sync, UI polish)
 - [x] Hangi prompt hangi AI — etiketlendi (`00_overall_summary.md` tablosu)
 - [ ] Sohbet ekran görüntüleri / link / text dump (case teslim sonrası)
@@ -164,7 +164,7 @@
 |-----|---------------------|
 | Faz 0 | 26 / 26 ✅ |
 | Faz 1 | 9 / 9 ✅ (progress bar + çoklu-CSV tamamlandı) |
-| Faz 2 | 14 / 16 (motor + 47 kural + otomatik validasyon ✅; tüm-kural pytest ~) |
+| Faz 2 | 14 / 16 (motor + 43 kural + otomatik validasyon ✅; tüm-kural pytest ~) |
 | Faz 3 | 9 / 9 ✅ (3 dashboard tablosu eklendi + düzeltildi) |
 | Faz 4 | 9 / 9 ✅ |
 | Faz 5 | 12 / 13 (circuit breaker ❌) |

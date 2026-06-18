@@ -119,5 +119,5 @@ Yapılması gerekenler:
 - Kalıcı çalışma belleği `.ai/memory/`: `project.md` (curated kararlar/durum) + `tasks.md` (görev log).
 - Görev tamamlanınca `tasks.md`'e tek satır ekle; kalıcı karar/öğreni varsa `project.md`'i güncelle.
 - Yeni oturuma başlarken önce bu ikisini oku. MiniMax: `MINIMAX_MEMORY_PATH=.ai/memory`.
-- **Her görev sonunda:** `tasks.md`'i güncelle + `make ai-export` ile transcript'i tazele (§8; idempotent). `make ai-backup` bunu çağırıp `ai_usage/`'i commit eder (push yapmaz; push kullanıcıya bırakılır).
-- **Transcript kaynakları (`make ai-export` hepsini tarar):** Claude Code (VS Code + CLI) `~/.claude/projects/<proje>/*.jsonl`; MiniMax (opencode CLI) `~/.local/share/opencode/opencode.db` (SQLite); eski MiniMax JSONL `~/.minimax/sessions`. Bu projeye ait **tüm** oturumlar her seferinde yedeklenir (sadece sonuncusu değil).
+- **Her görev sonunda:** `tasks.md`'i güncelle + `make ai-backup` ile transcript'i tazele (§8; idempotent; `scripts/backup-sessions.sh` çalıştırır ve `ai_usage/`'i commit eder — push yapmaz; push kullanıcıya bırakılır).
+- **Transcript kaynakları (`make ai-backup` hepsini tarar):** Claude Code (VS Code + CLI) `~/.claude/projects/<proje>/*.jsonl`; MiniMax (opencode CLI) `~/.local/share/opencode/opencode.db` (SQLite); eski MiniMax JSONL `~/.minimax/sessions`. Bu projeye ait **tüm** oturumlar her seferinde yedeklenir (sadece sonuncusu değil).

@@ -3,8 +3,8 @@
 > Kısa ve güncel tut. Önemli kararlar, mevcut durum, öğrenilenler.
 
 ## Mevcut Durum
-- Faz 0 (temel) büyük ölçüde tamam. Sıradaki: `make setup` + `make dev` doğrulaması, sonra Faz 1/2.
-- Uygulama kodu (feature'lar) henüz yazılmadı; iskelet + dokümantasyon + altyapı + lint kuralları hazır.
+- Çekirdek feature fazları uygulandı: backend (ingestion, validation, analytics, records, sync) + frontend (import, dashboard, records, validation, sync) feature kodu yazıldı; 38 backend testi geçiyor.
+- Backend feature'ları gerçek `api.py`/`service.py`/`engine.py` ile hazır; 6 tablolu DB şeması ve 43 kurallı (6 kategori) validasyon motoru mevcut.
 
 ## Önemli Kararlar (özet — detay: `.docs/shared/decisions/`)
 - Stack: Next.js + shadcn/ui + FastAPI + SQLite.

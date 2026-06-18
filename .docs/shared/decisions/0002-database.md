@@ -3,13 +3,16 @@
 **Durum:** Kabul edildi · **Tarih:** 2026-06-17
 
 ## Bağlam
-SQLite case study'de **zorunlu**. Veri: ~2.117 satır (100K+ bonus hedefi). Validasyon issue'ları,
-düzeltme audit'i ve idempotent sync log'u kalıcı tutulmalı.
+SQLite case study'de **zorunlu**. Veri: ~2.117 satır (100K+ bonus hedefi). Düzeltme audit'i ve
+idempotent sync log'u kalıcı tutulmalı. (Validasyon issue'ları kalıcı **tutulmaz**; yalnız türetilen
+kayıt durumu `production_records.status`'a yazılır, issue'lar her istekte motorla canlı hesaplanır.)
 
 ## Karar
 - SQLite, **SQLAlchemy ORM** ile. Runtime DB: `db/app.db` (repo kökü, gitignore'lu).
-- 5 tablo: `import_batches`, `production_records`, `validation_issues`, `record_edits`,
-  `sync_submissions` (bkz. [`database.md`](../../api/database.md)).
+- 6 tablo: `import_batches`, `production_records`, `validation_issues`, `record_edits`,
+  `sync_submissions`, `app_settings` (bkz. [`database.md`](../../api/database.md)).
+  Not: `validation_issues` şemada tanımlı ama runtime'da hiç doldurulmaz (her zaman boş);
+  issue'lar `run_validation` ile bellekte hesaplanır.
 - Tekillik: `production_records.row_hash` unique; `sync_submissions.idempotency_key` unique.
 
 ## Alternatifler

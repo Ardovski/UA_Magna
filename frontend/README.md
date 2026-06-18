@@ -15,11 +15,12 @@ Next.js (App Router) · TypeScript · **shadcn/ui + Tailwind** (özel token'lar)
 ## Yapı
 ```
 src/
-├── app/             # App Router: /, /import, /records, /validation, /sync
+├── app/             # App Router; sayfalar (dashboard) route grubunda
 │   ├── layout.tsx   # tema + query provider
 │   ├── providers.tsx
-│   ├── page.tsx     # dashboard (Faz 3)
-│   └── globals.css  # DESIGN TOKEN'LARI (CSS değişkenleri)
+│   ├── globals.css  # DESIGN TOKEN'LARI (CSS değişkenleri)
+│   └── (dashboard)/ # / (import), /dashboard, /records, /validation, /sync
+│       └── page.tsx # import (ImportRoute); dashboard → /dashboard/page.tsx
 ├── components/ui/   # shadcn bileşenleri (npx shadcn add ...)
 ├── features/        # import · dashboard · records · validation · sync
 ├── lib/             # api client, utils (cn, oeeColorClass)
@@ -29,11 +30,11 @@ src/
 
 ## Tema / Token
 Hardcoded renk **yok**; her şey semantic token. Detay:
-[`../../.docs/web/theme.md`](../../.docs/web/theme.md).
+[`../.docs/web/theme.md`](../.docs/web/theme.md).
 
 ## shadcn bileşeni ekleme
 ```bash
 cd frontend && npx shadcn@latest add button card table dialog badge slider
 ```
 
-Mimari: [`../../.docs/web/architecture.md`](../../.docs/web/architecture.md)
+Mimari: [`../.docs/web/architecture.md`](../.docs/web/architecture.md)

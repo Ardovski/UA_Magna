@@ -10,12 +10,13 @@ backend/app/features/validation/
 ├── report.py        # issue'ları sınıflandırır, özet + indirilebilir rapor (bonus)
 └── rules/
     ├── __init__.py  # kural registry'si
-    ├── missing_rules.py
-    ├── range_rules.py
-    ├── consistency_rules.py
-    ├── duplicate_rules.py
-    ├── format_rules.py
-    └── domain_rules.py
+    ├── base.py
+    ├── missing.py
+    ├── range_.py
+    ├── consistency.py
+    ├── duplicate.py
+    ├── format_.py
+    └── domain.py
 ```
 
 ## Çalışma Modeli
@@ -34,18 +35,22 @@ sabit/`config`'te tutulur — kodda magic number yok.
 ## Issue ve Kayıt Durumu
 - `Issue`: `rule_id, category, severity, fields, message, suggested_action`.
 - Kayıt durumu issue'lardan türetilir:
+  - durum yalnız issue **severity**'sinden türetilir (`suggested_action`'dan değil)
   - en az bir `error` → `rejected`
-  - yalnız `warning` → `suspect`
-  - hiç → `valid`
-- Issue'lar `validation_issues` tablosuna; manuel düzeltmeler `record_edits`'e yazılır.
+  - error yoksa en az bir `warning` → `suspect`
+  - aksi halde → `valid` (yalnız `info` severity'li issue'lar durumu `valid` bırakır)
+- Issue'lar kalıcı olarak **YAZILMAZ** — her istekte `run_validation` ile bellekte yeniden
+  hesaplanır (`validation_issues` tablosu şemada var ama hiç doldurulmaz). Yalnız türetilen kayıt
+  durumu `production_records.status`'a yazılır; manuel düzeltmeler `record_edits`'e (kalıcı) yazılır.
 
 ## Sistemik vs Tekil (bonus)
 Bir kural yüklemenin önemli bir oranında tetikleniyorsa "sistemik" etiketlenir (kaynak/MES
 sorunu) ve raporda ayrı gruplanır.
 
 ## Test
-`backend/tests/unit/test_<kategori>_rules.py` — her kural için pozitif (tetiklenir) ve negatif
-(temiz/sınır kayıt tetiklenmez) test. Yanlış pozitif önleme bu negatif testlerle güvenceye alınır.
+`backend/tests/test_validation.py` — `parametrize` ile kurallar için pozitif (tetiklenir) ve
+negatif (temiz/sınır kayıt tetiklenmez) satırlar + 2 uçtan uca motor testi (durum atama ve batch
+V-D02/V-X05). Yanlış pozitif önleme bu negatif testlerle güvenceye alınır.
 
 ## İlgili
 - Kural kataloğu (spec): [`../shared/domain/validation-rules.md`](../shared/domain/validation-rules.md)

@@ -3,16 +3,16 @@
 > Format: `YYYY-MM-DD · ne yapıldı · sonuç/not`. En yeni en üstte.
 
 - 2026-06-17 · Faz 6 — validation + records UI polish (19 component, 9 shadcn primitive, Zustand filters store, URL query senkron, sidebar layout) + `npx tsc --noEmit` 0 hata + `npx eslint` 0 hata · tamam
-- 2026-06-17 · Faz 6 — README dolu içerik (47 kural 6 kategori tablosu, dürüst yapamadıklarım listesi, mimari kararlar) + CHECKLIST güncelleme (8/15 + bonus) + ai_usage envanter (7 satır) + 00_overall_summary · tamam
+- 2026-06-17 · Faz 6 — README dolu içerik (43 kural 6 kategori tablosu, dürüst yapamadıklarım listesi, mimari kararlar) + CHECKLIST güncelleme (8/15 + bonus) + ai_usage envanter (7 satır) + 00_overall_summary · tamam
 - 2026-06-17 · Faz 5 — sync feature (aggregator, client, retry policy, service, 4 endpoint) + sync_submissions error_message kolonu + SyncPage/HistoryTable (auto-refresh 3s) · tamam
 - 2026-06-17 · Faz 4 — records feature (7-filtrli paginated list + CSV export streaming + UTF-8 BOM) + 4 endpoint · tamam
 - 2026-06-17 · Faz 3 — analytics service (5 filtre-aware agregasyon: kpis, oee-trend, shift-comparison, station-ranking, quality-distribution) + Dashboard 4 grafik + KPI + 5 paralel TanStack Query hook · tamam
 - 2026-06-17 · Faz 2.5 — DB şema/kod uyumsuzluk düzeltmesi (ProductionRecord.status, ValidationIssue.field_names, RecordEdit JSON audit, config 10 alan, NotFoundError) · tamam
-- 2026-06-17 · Faz 2 — validation motoru (47 kural, 6 kategori, iki geçişli engine, report.py sistemik/tekil tespiti, 7 endpoint) · tamam
+- 2026-06-17 · Faz 2 — validation motoru (43 kural, 6 kategori, iki geçişli engine, report.py sistemik/tekil tespiti, 7 endpoint) · tamam
 - 2026-06-17 · Faz 1 — ingestion feature (CSV parse + tarih/ondalık/yüzde normalize + file_hash + row_hash + ImportSummary + 2 endpoint + seed CLI) · tamam
-- 2026-06-17 · Faz 0 — DB şema doğrulama + `init_db.py` iyileştirmesi (5 tablo, 65 alan, sıralı metadata.create_all) · tamam
+- 2026-06-17 · Faz 0 — DB şema doğrulama + `init_db.py` iyileştirmesi (6 tablo, sıralı metadata.create_all) · tamam
 - 2026-06-17 · Faz 0 — git init + remote git@github.com:Ardovski/UA_Magna.git + main push (temiz başlangıç) · tamam
-- 2026-06-17 · ai_usage otomasyonu (şablon üretici `make ai-prompt` + transcript export `make ai-export` + opt-in UserPromptSubmit log hook) + yapı (prompts/transcripts/screenshots) · tamam
+- 2026-06-17 · ai_usage otomasyonu (şablon üretici `make ai-prompt` + transcript export `make ai-backup` + opt-in UserPromptSubmit log hook) + yapı (prompts/transcripts/screenshots) · tamam
 - 2026-06-17 · ESLint yasakları (boundaries feature-izolasyonu + no-restricted-imports/syntax + no-cycle) + prohibitions/feature-architecture dokümanları + `.ai/memory` bellek sistemi · tamam
 - 2026-06-17 · `.docs` yeniden yapılandırma (shared/api/web) + profesyonelleştirme + skill'ler (`.claude/skills`) + hook'lar (`.githooks`) · tamam
 - 2026-06-17 · AI bağlam: `AGENTS.md` (MiniMax) + `CLAUDE.md` senkron; isimlendirme standartları + VS Code dosya yuvalama · tamam

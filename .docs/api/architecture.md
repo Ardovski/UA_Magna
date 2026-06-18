@@ -20,16 +20,18 @@ app/
     ├── analytics/     # service.py (OEE recompute, KPI, trend agregasyonları)
     ├── records/       # service.py (filtre/sorgu), export.py (CSV)
     └── sync/          # client.py (httpx), service.py (agrege+idempotency+retry)
-└── api/v1/            # router'lar: imports, records, validation, analytics, sync, health
+└── api/v1/            # router'lar: imports, records, validation, analytics, sync (+ /status meta). GET /health app kökünde
 ```
 
 ## İstek Akışı (örnek: CSV import)
 ```
-POST /api/v1/imports (multipart)
-   api/v1/imports.py (router)
+POST /api/v1/imports/import (multipart)   # ayrıca POST /api/v1/imports/preview
+   api/v1/imports.py (yalnız features/ingestion/api.py'yi re-mount eder)
      features/ingestion/service.py: parse + normalize + duplicate-check
        features/validation/engine.py: her satıra kuralları uygula
-         db/models.py: production_records + validation_issues yaz
+         db/models.py: yalnız production_records.status yazılır
+                       (validation_issues tablosuna yazılmaz — issue'lar her istekte
+                        run_validation ile bellekte hesaplanır)
        schemas: ImportSummary döndür
 ```
 

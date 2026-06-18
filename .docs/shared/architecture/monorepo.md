@@ -18,7 +18,7 @@ umut-arda-ozdes-uretim-takip-case/
 │   │   ├── main.py                   # uygulama girişi, router mount, middleware
 │   │   ├── core/                     # config (.env), logging, hata yönetimi
 │   │   ├── db/                       # SQLAlchemy engine/session, models, init_db
-│   │   ├── schemas/                  # Pydantic request/response modelleri
+│   │   ├── schemas/                  # boş placeholder; Pydantic modelleri features/*/schemas.py'de
 │   │   ├── features/
 │   │   │   ├── ingestion/            # CSV parse + import + duplicate
 │   │   │   ├── validation/           # KURAL MOTORU (kalp) + rules/
@@ -26,7 +26,7 @@ umut-arda-ozdes-uretim-takip-case/
 │   │   │   ├── records/              # filtre/sorgu/CSV export
 │   │   │   └── sync/                 # hedef API client, idempotency, retry
 │   │   └── api/v1/                   # HTTP router'ları (endpoint'ler)
-│   ├── tests/                        # pytest (unit/ + fixtures/)
+│   ├── tests/                        # pytest (conftest.py + test_*.py, düz dosyalar)
 │   ├── requirements.txt
 │   ├── requirements-dev.txt
 │   └── pyproject.toml                # ruff/pytest/mypy konfig

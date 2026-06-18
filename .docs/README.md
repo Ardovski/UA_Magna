@@ -29,7 +29,7 @@ Projenin teknik dokümantasyonu üç grupta tutulur: **shared** (proje geneli ve
 | Dosya | Konu |
 |-------|------|
 | [`architecture.md`](api/architecture.md) | Backend katmanları, feature modülleri |
-| [`database.md`](api/database.md) | SQLite şeması (5 tablo) |
+| [`database.md`](api/database.md) | SQLite şeması (6 tablo) |
 | [`endpoints.md`](api/endpoints.md) | İç (internal) API endpoint'leri |
 | [`validation-engine.md`](api/validation-engine.md) | Validasyon motoru implementasyonu |
 
