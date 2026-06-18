@@ -21,15 +21,14 @@ from sqlalchemy import (
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
-from app.db.base import Base
+from app.db.base import Base, CreatedAtMixin, IntIdMixin, UpdatedAtMixin
 
 
-class ImportBatch(Base):
+class ImportBatch(IntIdMixin, Base):
     """Her CSV yükleme bir batch. file_hash → aynı dosya duplicate tespiti."""
 
     __tablename__ = "import_batches"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
     filename: Mapped[str] = mapped_column(String(255))
     file_hash: Mapped[str] = mapped_column(String(64), index=True)
     uploaded_at: Mapped[dt.datetime] = mapped_column(DateTime, server_default=func.now())
@@ -38,14 +37,15 @@ class ImportBatch(Base):
     rejected_rows: Mapped[int] = mapped_column(Integer, default=0)
     suspect_rows: Mapped[int] = mapped_column(Integer, default=0)
     error_message: Mapped[str | None] = mapped_column(Text, nullable=True)
-    status: Mapped[str] = mapped_column(String(20), default="processing")  # processing|completed|failed|duplicate
+    # status: processing|completed|failed|duplicate
+    status: Mapped[str] = mapped_column(String(20), default="processing")
 
     records: Mapped[list[ProductionRecord]] = relationship(
         back_populates="batch", cascade="all, delete-orphan"
     )
 
 
-class ProductionRecord(Base):
+class ProductionRecord(IntIdMixin, CreatedAtMixin, UpdatedAtMixin, Base):
     """Ana üretim kaydı — 18 kaynak kolon + türetilmiş/meta alanlar."""
 
     __tablename__ = "production_records"
@@ -54,7 +54,6 @@ class ProductionRecord(Base):
         Index("ix_record_date_shift_station", "prod_date", "shift", "station_name"),
     )
 
-    id: Mapped[int] = mapped_column(primary_key=True)
     import_batch_id: Mapped[int | None] = mapped_column(ForeignKey("import_batches.id"))
     record_id_src: Mapped[int | None] = mapped_column(Integer, index=True)
 
@@ -82,11 +81,9 @@ class ProductionRecord(Base):
     # türetilmiş + meta
     oee_recomputed: Mapped[float | None] = mapped_column(Float)
     row_hash: Mapped[str] = mapped_column(String(64))
-    status: Mapped[str] = mapped_column(String(20), default="valid", index=True)  # valid|suspect|rejected|fixed
-    created_at: Mapped[dt.datetime] = mapped_column(DateTime, server_default=func.now())
-    updated_at: Mapped[dt.datetime] = mapped_column(
-        DateTime, server_default=func.now(), onupdate=func.now()
-    )
+    # status: valid|suspect|rejected|fixed
+    status: Mapped[str] = mapped_column(String(20), default="valid", index=True)
+    # id, created_at, updated_at → IntIdMixin / CreatedAtMixin / UpdatedAtMixin
 
     batch: Mapped[ImportBatch | None] = relationship(back_populates="records")
     issues: Mapped[list[ValidationIssue]] = relationship(
@@ -97,31 +94,30 @@ class ProductionRecord(Base):
     )
 
 
-class ValidationIssue(Base):
+class ValidationIssue(IntIdMixin, CreatedAtMixin, Base):
     """Kayıt başına 0..N validasyon bulgusu (kural kataloğuna referans)."""
 
     __tablename__ = "validation_issues"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
     record_id: Mapped[int] = mapped_column(ForeignKey("production_records.id"), index=True)
     rule_id: Mapped[str] = mapped_column(String(10))  # örn. V-C01
-    category: Mapped[str] = mapped_column(String(20))  # missing|range|consistency|duplicate|format|domain
+    # category: missing|range|consistency|duplicate|format|domain
+    category: Mapped[str] = mapped_column(String(20))
     severity: Mapped[str] = mapped_column(String(10))  # error|warning|info
     field_names: Mapped[str | None] = mapped_column(Text)  # etkilenen alan(lar), JSON/CSV
     message: Mapped[str] = mapped_column(Text)
     suggested_action: Mapped[str] = mapped_column(String(10))  # reject|warn|fix
-    status: Mapped[str] = mapped_column(String(12), default="open")  # open|fixed|rejected|accepted
-    created_at: Mapped[dt.datetime] = mapped_column(DateTime, server_default=func.now())
+    # status: open|fixed|rejected|accepted
+    status: Mapped[str] = mapped_column(String(12), default="open")
 
     record: Mapped[ProductionRecord] = relationship(back_populates="issues")
 
 
-class RecordEdit(Base):
+class RecordEdit(IntIdMixin, Base):
     """Manuel düzeltme audit trail'i (bonus)."""
 
     __tablename__ = "record_edits"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
     record_id: Mapped[int] = mapped_column(ForeignKey("production_records.id"), index=True)
     field: Mapped[str] = mapped_column(String(40))
     old_value: Mapped[str | None] = mapped_column(Text)
@@ -133,34 +129,32 @@ class RecordEdit(Base):
     record: Mapped[ProductionRecord] = relationship(back_populates="edits")
 
 
-class SyncSubmission(Base):
+class SyncSubmission(IntIdMixin, CreatedAtMixin, Base):
     """Hedef API gönderim log'u — idempotency + retry takibi."""
 
     __tablename__ = "sync_submissions"
     __table_args__ = (UniqueConstraint("idempotency_key", name="uq_sync_idempotency_key"),)
 
-    id: Mapped[int] = mapped_column(primary_key=True)
     prod_date: Mapped[dt.date] = mapped_column(Date, index=True)
     shift: Mapped[int] = mapped_column(Integer)
     idempotency_key: Mapped[str] = mapped_column(String(40))  # "{prod_date}:{shift}"
     payload_hash: Mapped[str] = mapped_column(String(64))
-    status: Mapped[str] = mapped_column(String(12), default="pending")  # pending|success|failed|retrying
+    # status: pending|success|failed|retrying
+    status: Mapped[str] = mapped_column(String(12), default="pending")
     http_status: Mapped[int | None] = mapped_column(Integer)
     target_submission_id: Mapped[int | None] = mapped_column(Integer)
     response_body: Mapped[str | None] = mapped_column(Text)
     error_message: Mapped[str | None] = mapped_column(Text)
     attempts: Mapped[int] = mapped_column(Integer, default=0)
     last_attempt_at: Mapped[dt.datetime | None] = mapped_column(DateTime)
-    created_at: Mapped[dt.datetime] = mapped_column(DateTime, server_default=func.now())
+    # created_at → CreatedAtMixin
 
 
-class AppSetting(Base):
+class AppSetting(UpdatedAtMixin, Base):
     """Anahtar-değer uygulama ayarları (key='active_batch_id' vb.)."""
 
     __tablename__ = "app_settings"
 
     key: Mapped[str] = mapped_column(String(64), primary_key=True)
     value: Mapped[str] = mapped_column(Text)
-    updated_at: Mapped[dt.datetime] = mapped_column(
-        DateTime, server_default=func.now(), onupdate=func.now()
-    )
+    # updated_at → UpdatedAtMixin
