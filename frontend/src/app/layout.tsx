@@ -1,10 +1,6 @@
 import type { Metadata } from "next";
-import { Inter, JetBrains_Mono } from "next/font/google";
 import "./globals.css";
 import { Providers } from "./providers";
-
-const sans = Inter({ subsets: ["latin", "latin-ext"], variable: "--font-sans" });
-const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
   title: "Üretim Performans Takip",
@@ -12,9 +8,14 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
+  // Not: `next/font/google` (Inter, JetBrains_Mono) build-time'da Google Fonts'tan
+  // font dosyalarını indirip indirip gömüyor. İnternet yok / yavaş / bloklu
+  // ortamlarda build sırasında 30s timeout cascade veriyor ve sayfa fallback
+  // font'a düşüyor. Sistem font stack'i (`ui-sans-serif`/`ui-monospace` Tailwind
+  // defaults) yeterli görsel kaliteyi veriyor + sıfır dış bağımlılık.
   return (
     <html lang="tr" suppressHydrationWarning>
-      <body className={`${sans.variable} ${mono.variable} font-sans antialiased`}>
+      <body className="font-sans antialiased">
         <Providers>{children}</Providers>
       </body>
     </html>

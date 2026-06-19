@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { useToast } from "@/components/ui/toast";
 import { useT } from "@/lib/i18n";
 import { useSubmitSync, useSyncPreview } from "./useSync";
 import type { SyncGroupPreview } from "./types";
@@ -11,6 +12,7 @@ function fmt(n: number): string {
 
 export function SyncPage() {
   const t = useT();
+  const toast = useToast();
   const preview = useSyncPreview();
   const submit = useSubmitSync();
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -27,7 +29,15 @@ export function SyncPage() {
 
   const selectAll = () => {
     if (!preview.data) return;
-    setSelected(new Set(preview.data.groups.map((g) => g.idempotency_key)));
+    // Yalnız hedef API'ye uyumlu (target_valid=true) gruplar seçilir — uyumsuzlar
+    // seçilse bile backend bunları göndermeyi reddedeceği için UX olarak göstermiyoruz.
+    setSelected(
+      new Set(
+        preview.data.groups
+          .filter((g) => g.target_valid ?? true)
+          .map((g) => g.idempotency_key),
+      ),
+    );
   };
 
   const clearAll = () => setSelected(new Set());
@@ -37,12 +47,47 @@ export function SyncPage() {
     const targets: Array<{ production_date: string; shift: number }> = [];
     for (const key of selected) {
       const g = groups.find((x) => x.idempotency_key === key);
-      if (g) targets.push({ production_date: g.production_date, shift: g.shift });
+      if (g && (g.target_valid ?? true)) {
+        targets.push({ production_date: g.production_date, shift: g.shift });
+      }
     }
     if (targets.length === 0) return;
-    // Yalnız seçilen grup(lar) gönderilir — seçim ne olursa olsun "hepsi" gitmez.
-    submit.mutate({ targets, force });
+    // Yalnız seçilen ve uyumlu olan grup(lar) gönderilir — seçim ne olursa olsun "hepsi" gitmez.
+    submit.mutate(
+      { targets, force },
+      {
+        onSuccess: (data) => {
+          const sent = data.accepted.length;
+          const skipped = data.skipped_already_success.length;
+          const hashConflict = data.rejected_due_to_hash_conflict.length;
+          const constraints = data.rejected_target_constraints.length;
+          if (sent > 0) {
+            toast.push({
+              tone: "success",
+              title: t("sync.syncPage.submitSuccess"),
+              description: t("sync.syncPage.submitSuccessDesc", { n: sent }),
+            });
+          }
+          // 0 kabul + (hash/conflict/target) → başarısız gibi uyar
+          if (sent === 0 && (skipped + hashConflict + constraints) > 0) {
+            toast.push({
+              tone: "warning",
+              title: t("sync.syncPage.submitFailed"),
+              description: `${skipped + hashConflict + constraints} grup sıraya alınamadı (zaten başarılı/hash/constraint).`,
+            });
+          }
+        },
+        onError: () =>
+          toast.push({
+            tone: "destructive",
+            title: t("sync.syncPage.submitFailed"),
+            description: t("sync.syncPage.submitFailedDesc"),
+          }),
+      },
+    );
   };
+
+  const notCompliant = preview.data?.not_target_compliant_count ?? 0;
 
   return (
     <main className="container mx-auto py-8">
@@ -87,13 +132,60 @@ export function SyncPage() {
         </div>
       </header>
 
+      {/* Hedef API uyumlu olmayan grupların banner özeti — operatörü uyarır. */}
+      {notCompliant > 0 ? (
+        <section
+          role="alert"
+          data-testid="target-constraints-banner"
+          className="mb-4 rounded-lg border border-oee-mid/40 bg-oee-mid/10 p-3 text-sm"
+        >
+          <strong className="text-oee-mid">{t("sync.syncPage.targetConstraintsBannerTitle")}:</strong>{" "}
+          {notCompliant} {t("sync.syncPage.targetConstraintsBannerBody")}
+        </section>
+      ) : null}
+
       {submit.data ? (
-        <section className="mb-4 rounded-lg border bg-card p-4 text-sm text-card-foreground">
+        <section className="mb-4 space-y-2 rounded-lg border bg-card p-4 text-sm text-card-foreground">
           <div>
             <strong>{t("sync.syncPage.accepted")}</strong> {submit.data.accepted.length} ·{" "}
             <strong>{t("sync.syncPage.alreadySuccess")}</strong> {submit.data.skipped_already_success.length} ·{" "}
             <strong>{t("sync.syncPage.hashConflict")}</strong> {submit.data.rejected_due_to_hash_conflict.length}
           </div>
+          {/* Hash çakışması: aynı idempotency_key ile farklı payload geldi → güvenlik için
+              reddedildi (force=true ile geçilebilir). Operatöre neden açıklanır. */}
+          {submit.data.rejected_due_to_hash_conflict.length > 0 ? (
+            <div
+              role="alert"
+              data-testid="hash-conflict-warning"
+              className="rounded border border-oee-low/40 bg-oee-low/10 p-2 text-oee-low"
+            >
+              <strong>{t("sync.syncPage.hashConflictWarningTitle")}:</strong>{" "}
+              {t("sync.syncPage.hashConflictWarningBody", {
+                n: submit.data.rejected_due_to_hash_conflict.length,
+              })}{" "}
+              <code className="font-mono text-xs">
+                {submit.data.rejected_due_to_hash_conflict.slice(0, 3).join(", ")}
+                {submit.data.rejected_due_to_hash_conflict.length > 3 ? "…" : ""}
+              </code>
+            </div>
+          ) : null}
+          {/* Hedef API constraint ihlali — veri düzeltilmeden gönderilemez. */}
+          {submit.data.rejected_target_constraints.length > 0 ? (
+            <div
+              role="alert"
+              data-testid="target-constraints-warning"
+              className="rounded border border-oee-mid/40 bg-oee-mid/10 p-2 text-oee-mid"
+            >
+              <strong>{t("sync.syncPage.targetConstraintsWarningTitle")}:</strong>{" "}
+              {t("sync.syncPage.targetConstraintsWarningBody", {
+                n: submit.data.rejected_target_constraints.length,
+              })}{" "}
+              <code className="font-mono text-xs">
+                {submit.data.rejected_target_constraints.slice(0, 3).join(", ")}
+                {submit.data.rejected_target_constraints.length > 3 ? "…" : ""}
+              </code>
+            </div>
+          ) : null}
         </section>
       ) : null}
 
@@ -151,10 +243,24 @@ function PreviewRow({
   onToggle: () => void;
 }) {
   const t = useT();
+  // Savunmacı: stale cache / eski API build ile target_issues undefined gelebilir →
+  // ?. ile güvenli erişim; ayrıca length yerine truthy kontrol (boş dizi de truthy değil).
+  const issues = group.target_issues ?? [];
+  const tooltip = issues.length > 0 ? issues.join(" · ") : undefined;
+  const isTargetValid = group.target_valid ?? true;
   return (
-    <tr className="border-b hover:bg-muted/50">
+    <tr
+      className={`border-b hover:bg-muted/50 ${isTargetValid ? "" : "bg-oee-low/5"}`}
+      title={tooltip}
+    >
       <td className="p-2">
-        <input type="checkbox" checked={selected} onChange={onToggle} />
+        <input
+          type="checkbox"
+          checked={selected}
+          onChange={onToggle}
+          disabled={!isTargetValid}
+          aria-label={group.idempotency_key}
+        />
       </td>
       <td className="p-2 font-mono">{group.production_date}</td>
       <td className="p-2">{t(`shift.${group.shift}`)}</td>
@@ -164,7 +270,17 @@ function PreviewRow({
         {group.oe_value === null ? t("common.none") : `${group.oe_value.toFixed(1)}%`}
       </td>
       <td className="p-2 text-right tabular-nums">{fmt(group.source_record_count)}</td>
-      <td className="p-2 font-mono text-xs text-muted-foreground">{group.idempotency_key}</td>
+      <td className="p-2 font-mono text-xs text-muted-foreground">
+        {group.idempotency_key}
+        {!isTargetValid ? (
+          <span
+            className="ml-2 inline-block rounded bg-oee-low/20 px-1.5 py-0.5 text-[10px] uppercase tracking-wide text-oee-low"
+            title={tooltip}
+          >
+            {t("sync.syncPage.targetInvalidBadge")}
+          </span>
+        ) : null}
+      </td>
     </tr>
   );
 }

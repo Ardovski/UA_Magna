@@ -11,6 +11,7 @@ export function useIssues(filter: IssueFilter) {
   if (filter.category) p.set("category", filter.category);
   if (filter.severity) p.set("severity", filter.severity);
   if (filter.rule_id) p.set("rule_id", filter.rule_id);
+  if (filter.record_status) p.set("record_status", filter.record_status);
   const q = p.toString();
   return useQuery({
     queryKey: [...queryKeys.validation.issues(filter), q] as const,

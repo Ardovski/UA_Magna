@@ -7,6 +7,11 @@ const backend = process.env.BACKEND_INTERNAL_URL || "http://localhost:8000";
 const nextConfig = {
   output: "standalone",
   reactStrictMode: true,
+  // Ağır UI kütüphanelerini tree-shake et → bundle küçülür, ilk yükleme hızlanır.
+  // recharts: tüm grafik tiplerini import etmek yerine yalnız kullanılanları çek.
+  experimental: {
+    optimizePackageImports: ["recharts", "@tanstack/react-table", "lucide-react"],
+  },
   async rewrites() {
     return [{ source: "/api/v1/:path*", destination: `${backend}/api/v1/:path*` }];
   },

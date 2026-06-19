@@ -25,10 +25,10 @@ C_YELLOW := \033[33m
 C_GREY   := \033[90m
 
 .DEFAULT_GOAL := help
-.PHONY: help setup setup-api setup-web env dev dev-api dev-web \
-        db-init db-reset seed test test-api test-web lint lint-api lint-web \
-        format typecheck check clean clean-db ai-sync hooks ai-prompt \
-        ai-backup doctor
+.PHONY: help setup setup-api setup-web env dev dev-api dev-web dev-stop \
+        build prod prod-stop db-init db-reset seed test test-api test-web \
+        lint lint-api lint-web format typecheck check clean clean-db ai-sync \
+        hooks ai-prompt ai-backup doctor
 
 # --- Yardım ---------------------------------------------------------------
 help: ## Bu yardım menüsünü göster (kategorize)
@@ -39,12 +39,17 @@ help: ## Bu yardım menüsünü göster (kategorize)
 	@printf "    $(C_CYAN)%-12s$(C_RESET) %s\n" dev      "api (:8000) + web (:3000) birlikte çalıştır"
 	@printf "    $(C_CYAN)%-12s$(C_RESET) %s\n" dev-api  "Sadece FastAPI (reload, :8000)"
 	@printf "    $(C_CYAN)%-12s$(C_RESET) %s\n" dev-web  "Sadece Next.js (:3000)"
+	@printf "    $(C_CYAN)%-12s$(C_RESET) %s\n" dev-stop ":8000 ve :3000'ü tutan süreçleri öldür (stale port hataları için)"
+	@printf "\n$(C_BOLD)  Production$(C_RESET)\n"
+	@printf "    $(C_CYAN)%-12s$(C_RESET) %s\n" build   "Frontend üretim build'i (.next/standalone)"
+	@printf "    $(C_CYAN)%-12s$(C_RESET) %s\n" prod    "★ Üretim sunucusu: build + api (:8000) + web (:3000) — dev yavaşlığı yok"
+	@printf "    $(C_CYAN)%-12s$(C_RESET) %s\n" prod-stop "production süreçlerini durdur (:8000, :3000)"
 	@printf "\n$(C_BOLD)  Veritabanı$(C_RESET)\n"
 	@printf "    $(C_CYAN)%-12s$(C_RESET) %s\n" db-init  "SQLite şemasını oluştur"
 	@printf "    $(C_CYAN)%-12s$(C_RESET) %s\n" db-reset "DB'yi sil + yeniden oluştur"
 	@printf "    $(C_CYAN)%-12s$(C_RESET) %s\n" seed     "data/production_data.csv'i import et"
 	@printf "\n$(C_BOLD)  Kalite$(C_RESET)\n"
-	@printf "    $(C_CYAN)%-12s$(C_RESET) %s\n" test     "Tüm testler (pytest + web)"
+	@printf "    $(C_CYAN)%-12s$(C_RESET) %s\n" test     "★ Tüm sistemi test et (pytest + ruff + tsc + eslint)"
 	@printf "    $(C_CYAN)%-12s$(C_RESET) %s\n" lint     "ruff + eslint"
 	@printf "    $(C_CYAN)%-12s$(C_RESET) %s\n" format   "ruff format + prettier"
 	@printf "    $(C_CYAN)%-12s$(C_RESET) %s\n" typecheck "mypy (py) + tsc (ts)"
@@ -93,6 +98,31 @@ dev-api: ## Sadece FastAPI (reload, :8000)
 dev-web: ## Sadece Next.js (:3000)
 	@cd $(WEB_DIR) && npm run dev
 
+dev-stop: ## :8000 ve :3000 portlarını tutan süreçleri öldür (stale port hatası çözümü)
+	@for port in $(API_PORT) $(WEB_PORT); do \
+		pids=$$(ss -ltnp 2>/dev/null | awk -v p="$$port" '$$4 ~ ":"p" " {match($$6, /pid=([0-9]+)/, m); if (m[1]) print m[1]}'); \
+		if [ -n "$$pids" ]; then \
+			echo "  killing port $$port (pid: $$pids)"; \
+			for pid in $$pids; do kill -9 $$pid 2>/dev/null || true; done; \
+		else \
+			echo "  port $$port zaten boş"; \
+		fi; \
+	done
+
+# --- Production ------------------------------------------------------------
+build: ## Frontend üretim build'i (.next/standalone, optimize edilmiş bundle)
+	@cd $(WEB_DIR) && npm run build
+	@echo "  ✓ frontend build tamam (production mode'da sayfa geçişleri hızlıdır)"
+
+prod: build ## ★ Üretim sunucusu: build sonrası api + web (dev compile yavaşlığı yok)
+	@echo "$(B)Üretim başlatılıyor:$(R) api→:$(API_PORT)  web→:$(WEB_PORT)  (Ctrl-C ile dur)"
+	@trap 'kill 0' INT TERM; \
+	( cd $(API_DIR) && ../$(UVICORN) app.main:app --host 0.0.0.0 --port $(API_PORT) ) & \
+	( cd $(WEB_DIR) && npm run start -- -p $(WEB_PORT) ) & \
+	wait
+
+prod-stop: dev-stop ## production süreçlerini durdur (:8000, :3000)
+
 # --- Veritabanı -----------------------------------------------------------
 db-init: ## SQLite şemasını oluştur
 	@cd $(API_DIR) && ../$(PY) -m app.db.init_db
@@ -104,7 +134,17 @@ seed: ## data/production_data.csv'i import et (geliştirme kolaylığı)
 	@cd $(API_DIR) && ../$(PY) -m app.features.ingestion.seed ../data/production_data.csv
 
 # --- Kalite ---------------------------------------------------------------
-test: test-api test-web ## Tüm testler
+test: ## Tüm sistemi test et: backend pytest + ruff + frontend tsc + eslint
+	@printf "$(C_BOLD)→ Tüm sistem testi$(C_RESET)\n"
+	@printf "  $(C_CYAN)[1/4]$(C_RESET) backend pytest\n"
+	@cd $(API_DIR) && ../$(PYTEST) -v
+	@printf "  $(C_CYAN)[2/4]$(C_RESET) backend ruff check\n"
+	@$(RUFF) check $(API_DIR)
+	@printf "  $(C_CYAN)[3/4]$(C_RESET) frontend tsc --noEmit\n"
+	@cd $(WEB_DIR) && npx tsc --noEmit
+	@printf "  $(C_CYAN)[4/4]$(C_RESET) frontend eslint\n"
+	@cd $(WEB_DIR) && npx eslint . --max-warnings=0
+	@printf "$(C_GREEN)✓ Tüm testler geçti$(C_RESET)\n"
 
 test-api: ## Backend testleri (pytest) — özellikle validation
 	@cd $(API_DIR) && ../$(PYTEST) -q

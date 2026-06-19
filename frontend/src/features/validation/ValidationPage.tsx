@@ -28,9 +28,6 @@ export function ValidationPage() {
     });
   };
 
-  const recordStatus =
-    tab === "suspect" ? "suspect" : tab === "rejected" ? "rejected" : undefined;
-
   const onRun = () => {
     run.mutate(undefined, {
       onSuccess: (d) =>
