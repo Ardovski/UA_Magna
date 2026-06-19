@@ -9,8 +9,10 @@ const nextConfig = {
   reactStrictMode: true,
   // Ağır UI kütüphanelerini tree-shake et → bundle küçülür, ilk yükleme hızlanır.
   // recharts: tüm grafik tiplerini import etmek yerine yalnız kullanılanları çek.
+  // NOT: @tanstack/react-table barrel optimizer ile ESM parse hatası veriyor
+  // (dev mode'da 'import/export sourceType: module' hatası); o yüzden listede yok.
   experimental: {
-    optimizePackageImports: ["recharts", "@tanstack/react-table", "lucide-react"],
+    optimizePackageImports: ["recharts", "lucide-react"],
   },
   async rewrites() {
     return [{ source: "/api/v1/:path*", destination: `${backend}/api/v1/:path*` }];
