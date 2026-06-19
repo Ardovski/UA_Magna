@@ -20,7 +20,7 @@ Case: "Gönderim her gün, 3 vardiya için ayrı ayrı." Payload kayıt-kayıt d
 | `production_date` | string | gün | `YYYY-MM-DD`, gelecek değil |
 | `shift` | int | vardiya | 1 / 2 / 3 |
 | `machine_count` | int | o vardiyada aktif distinct istasyon sayısı | 1–1000 |
-| `total_production_units` | int | Σ Üretilen Miktar | 1–1.000.000 |
+| `total_production_units` | int | Σ Üretilen Miktar (**fire dahil** — kontrat: "including rejects") | 1–1.000.000 |
 | `oe_value` | float | ort. OEE (üretimle ağırlıklı önerilir) | 0.0–100.0 |
 
 ### Örnek İstek
@@ -80,6 +80,7 @@ network/timeout (TimeoutException, ConnectError, RemoteProtocolError): geçici s
 2. submit    POST /api/v1/sync/submit           HTTP 202 Accepted; gönderim arka planda (BackgroundTasks)
 3. history   GET  /api/v1/sync/history          her gönderim: durum, http kodu, submission_id
 4. retry     POST /api/v1/sync/{submission_id}/retry  başarısız gönderimi senkron yeniden dene
+5. retry-all POST /api/v1/sync/retry-all        failed/retrying tümünü arka planda (202) yeniden dene
 ```
 
 ### `POST /api/v1/sync/submit` sözleşmesi
