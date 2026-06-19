@@ -164,7 +164,8 @@ planda** yapılır. Hedef API'ye `httpx` ile POST edilir; retry/backoff matrisi 
 │           ├── dashboard/         # KPI grid + 4 recharts grafik + 3 tablo (Tabs)
 │           ├── records/           # FilterPanel, RecordsTable (TanStack), ExportButton
 │           ├── validation/        # ValidationPage, IssueList, IssueDetailDrawer, FixRejectButtons
-│           └── sync/              # SyncPage (multi-select targets), HistoryTable (per-row retry)
+│           ├── sync/              # SyncPage (multi-select targets), HistoryTable (per-row + retry-all)
+│           └── definitions/       # Tanımlar/Definitions — veri sözlüğü + OEE + proje sözlüğü (TR/EN)
 ├── db/                            # SQLite veritabanı evi (app.db + README.md)
 ├── data/                          # production_data.csv (2.117 satır, commit edilir)
 ├── .docs/                         # mimari + domain + api-contract + decisions dokümanları

@@ -28,6 +28,8 @@ const tr: Record<string, string> = {
   "nav.records.desc": "Filtreli tablo",
   "nav.sync": "Sync",
   "nav.sync.desc": "Hedef API",
+  "nav.definitions": "Tanımlar",
+  "nav.definitions.desc": "Veri sözlüğü + OEE + sözlük",
   // header
   "header.brand": "Üretim Takip",
   "header.activeBatch": "Aktif:",
@@ -275,6 +277,8 @@ const en: Record<string, string> = {
   "nav.records.desc": "Filtered table",
   "nav.sync": "Sync",
   "nav.sync.desc": "Target API",
+  "nav.definitions": "Definitions",
+  "nav.definitions.desc": "Data dictionary + OEE + glossary",
   // header
   "header.brand": "Production Tracking",
   "header.activeBatch": "Active:",

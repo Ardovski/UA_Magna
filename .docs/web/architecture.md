@@ -21,7 +21,8 @@ src/app/
     ├── dashboard/page.tsx           # Dashboard (KPI + grafikler)
     ├── records/page.tsx             # filtre + tablo + CSV export
     ├── validation/page.tsx          # şüpheli kayıtlar + düzelt/reddet + audit
-    └── sync/page.tsx                # (gün, vardiya) gönderim + retry + geçmiş
+    ├── sync/page.tsx                # (gün, vardiya) gönderim + retry/retry-all + geçmiş
+    └── definitions/page.tsx         # Tanımlar/Definitions — veri sözlüğü + OEE + sözlük (TR/EN)
 ```
 
 ## Feature-bazlı Organizasyon
@@ -33,7 +34,7 @@ src/features/<feature>/        # DÜZ dosya yapısı (alt klasör yok)
 ├── types.ts                   # feature'a özel tipler
 └── (örn. mergeSummaries.ts gibi yardımcılar)
 ```
-Feature'lar: `import`, `dashboard`, `records`, `validation`, `sync`.
+Feature'lar: `import`, `dashboard`, `records`, `validation`, `sync`, `definitions`.
 
 ## API İletişimi
 - `src/lib/api/client.ts` — tek tip fetch wrapper (base URL = `env.apiUrl`, `@/lib/env`'den).

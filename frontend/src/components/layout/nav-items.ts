@@ -13,6 +13,7 @@ export const NAV_ITEMS: NavItem[] = [
   { href: "/validation", labelKey: "nav.validation", descKey: "nav.validation.desc" },
   { href: "/records", labelKey: "nav.records", descKey: "nav.records.desc" },
   { href: "/sync", labelKey: "nav.sync", descKey: "nav.sync.desc" },
+  { href: "/definitions", labelKey: "nav.definitions", descKey: "nav.definitions.desc" },
 ];
 
 /** Aktif route eşleşmesi — "/" sadece tam eşleşir, diğerleri prefix. */
