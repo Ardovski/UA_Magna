@@ -1,10 +1,13 @@
 "use client";
 
+import { memo } from "react";
 import { AlertTriangle, Clock, Gauge, Package } from "lucide-react";
 import { format, subDays } from "date-fns";
-import { KpiCard, oeeTone, type KpiTrend, type TrendDirection } from "./KpiCard";
-import { useKpis, useKpisPeriod } from "./useDashboardData";
+import { useQueries } from "@tanstack/react-query";
+import { SummaryCard, oeeTone, type SummaryTrend, type TrendDirection } from "@/components/molecules";
+import { api } from "@/lib/api";
 import { useT } from "@/lib/i18n";
+import { useKpis } from "./useDashboardData";
 
 const fmtPct = (v: number | null | undefined): string =>
   v === null || v === undefined ? "—" : `${v.toFixed(1)}%`;
@@ -20,7 +23,7 @@ const fmtHours = (minutes: number | null | undefined): string => {
 function pctChange(
   current: number | null | undefined,
   previous: number | null | undefined,
-): KpiTrend | null {
+): SummaryTrend | null {
   if (current === null || current === undefined) return null;
   if (previous === null || previous === undefined || previous === 0) return null;
   const change = ((current - previous) / previous) * 100;
@@ -29,7 +32,14 @@ function pctChange(
   return { value: change, direction };
 }
 
-export function KpiCardGrid() {
+interface PeriodKpis {
+  avg_oee: number | null;
+  total_production: number | null;
+  total_scrap: number | null;
+  total_down_time_minutes: number | null;
+}
+
+function KpiCardGridInner() {
   const t = useT();
   const kpis = useKpis();
   const today = new Date();
@@ -38,40 +48,64 @@ export function KpiCardGrid() {
   const prev7Str = format(subDays(today, 14), "yyyy-MM-dd");
   const prev7EndStr = format(subDays(today, 7), "yyyy-MM-dd");
 
-  const kpisCurrent = useKpisPeriod(last7Str, todayStr);
-  const kpisPrevious = useKpisPeriod(prev7Str, prev7EndStr);
+  // İki period'u tek useQueries ile paralel çek → ayrı hook yerine tek koordinasyon.
+  const periodResults = useQueries({
+    queries: [
+      {
+        queryKey: ["analytics", "kpis", "period", last7Str, todayStr] as const,
+        queryFn: () =>
+          api.get<PeriodKpis>(
+            `/api/v1/analytics/kpis?start=${last7Str}&end=${todayStr}`,
+          ),
+        staleTime: 60_000,
+      },
+      {
+        queryKey: ["analytics", "kpis", "period", prev7Str, prev7EndStr] as const,
+        queryFn: () =>
+          api.get<PeriodKpis>(
+            `/api/v1/analytics/kpis?start=${prev7Str}&end=${prev7EndStr}`,
+          ),
+        staleTime: 60_000,
+      },
+    ],
+  });
+  const kpisCurrent = periodResults[0]?.data;
+  const kpisPrevious = periodResults[1]?.data;
+  const periodLoading = periodResults.some((r) => r.isLoading);
 
-  const oeeTrend = pctChange(kpisCurrent.data?.avg_oee, kpisPrevious.data?.avg_oee);
+  const oeeTrend = pctChange(kpisCurrent?.avg_oee, kpisPrevious?.avg_oee);
   const productionTrend = pctChange(
-    kpisCurrent.data?.total_production,
-    kpisPrevious.data?.total_production,
+    kpisCurrent?.total_production,
+    kpisPrevious?.total_production,
   );
-  const scrapTrend = pctChange(kpisCurrent.data?.total_scrap, kpisPrevious.data?.total_scrap);
+  const scrapTrend = pctChange(kpisCurrent?.total_scrap, kpisPrevious?.total_scrap);
   const downtimeTrend = pctChange(
-    kpisCurrent.data?.total_down_time_minutes,
-    kpisPrevious.data?.total_down_time_minutes,
+    kpisCurrent?.total_down_time_minutes,
+    kpisPrevious?.total_down_time_minutes,
   );
+
+  const loading = kpis.isLoading || periodLoading;
 
   return (
     <section className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-      <KpiCard
+      <SummaryCard
         label={t("dashboard.kpiCardGrid.avgOee")}
         value={fmtPct(kpis.data?.avg_oee)}
         icon={<Gauge className="h-4 w-4" />}
         tone={oeeTone(kpis.data?.avg_oee)}
         trend={oeeTrend}
         hint={t("dashboard.kpiCardGrid.avgOeeHint")}
-        loading={kpis.isLoading}
+        loading={loading}
       />
-      <KpiCard
+      <SummaryCard
         label={t("dashboard.kpiCardGrid.totalProduction")}
         value={fmtNumber(kpis.data?.total_production)}
         icon={<Package className="h-4 w-4" />}
         trend={productionTrend}
         hint={t("dashboard.kpiCardGrid.unitHint")}
-        loading={kpis.isLoading}
+        loading={loading}
       />
-      <KpiCard
+      <SummaryCard
         label={t("dashboard.kpiCardGrid.totalScrap")}
         value={fmtNumber(kpis.data?.total_scrap)}
         icon={<AlertTriangle className="h-4 w-4" />}
@@ -79,9 +113,9 @@ export function KpiCardGrid() {
         trend={scrapTrend}
         inverted
         hint={t("dashboard.kpiCardGrid.unitHint")}
-        loading={kpis.isLoading}
+        loading={loading}
       />
-      <KpiCard
+      <SummaryCard
         label={t("dashboard.kpiCardGrid.totalDowntime")}
         value={fmtHours(kpis.data?.total_down_time_minutes)}
         icon={<Clock className="h-4 w-4" />}
@@ -89,8 +123,10 @@ export function KpiCardGrid() {
         trend={downtimeTrend}
         inverted
         hint={t("dashboard.kpiCardGrid.hourHint")}
-        loading={kpis.isLoading}
+        loading={loading}
       />
     </section>
   );
 }
+
+export const KpiCardGrid = memo(KpiCardGridInner);

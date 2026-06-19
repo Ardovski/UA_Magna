@@ -14,20 +14,21 @@ export function ExportButton() {
       variant="outline"
       size="sm"
       disabled={exp.isPending}
-      onClick={() =>
+      onClick={() => {
+        toast.push({ tone: "default", title: t("records.toast.exportStarted") });
         exp.mutate(undefined, {
           onSuccess: () =>
             toast.push({
               tone: "success",
-              title: t("records.exportButton.downloadSuccess"),
+              title: t("records.toast.exportSuccess"),
             }),
           onError: () =>
             toast.push({
               tone: "destructive",
-              title: t("records.exportButton.downloadError"),
+              title: t("records.toast.exportFailed"),
             }),
-        })
-      }
+        });
+      }}
     >
       {exp.isPending
         ? t("records.exportButton.downloading")

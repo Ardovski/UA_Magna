@@ -43,10 +43,32 @@ Feature'lar: `import`, `dashboard`, `records`, `validation`, `sync`, `definition
 - `next.config.mjs` rewrites → `/api/v1/:path*` ⇒ `${BACKEND_INTERNAL_URL || http://localhost:8000}/api/v1/:path*` (same-origin proxy, CORS'suz dev).
 - Tüm sunucu mutasyonları (import, fix, sync) TanStack Query `useMutation` ile.
 
+## Sunucu-state Optimizasyonu (`providers.tsx`)
+Global `QueryClient` ayarları:
+- `staleTime: 60s` + `gcTime: 5dk` → aynı query 1 dakika içinde tekrar fire edilmez; unmount olunca cache 5 dakika tutulur (geri dönüşte anında döner).
+- `refetchOnWindowFocus: false` → tab değişiminde gereksiz yeniden istek yok.
+- `refetchOnReconnect: true` → ağ gelince otomatik tazele.
+- Global `QueryCache({ onError })` + `MutationCache({ onError })` → eşleşmeyen 401/422/5xx/network hataları otomatik destructive toast. Feature sayfaları kendi mutasyonlarında zaten başarı/hata toast verir; bu köprü **sessiz kalan** hataları yakalar.
+- Recharts `ResponsiveContainer` `debounce={50}` → scroll/resize sırasında re-render fırtınasını önler.
+- Dashboard chart component'leri `React.memo` ile sarılı → prop değişmediği sürece re-render etmez.
+
 ## Bileşen Katmanları
 1. `components/ui/*` — shadcn primitive'leri (Button, Card, Table, Dialog, Slider, Toast...).
-2. `features/*/*.tsx` — domain bileşenleri (IssueList, OeeTrendChart, KpiCard...).
-3. `app/(dashboard)/**/page.tsx` — sayfa kompozisyonu.
+2. `components/atoms/*` — shadcn üstü küçük bağımsız birimler (EmptyState, FieldLabel, SkeletonText, StatusDot).
+3. `components/molecules/*` — 2+ atomdan oluşan, jenerik bir iş yapan birimler (SummaryCard, DiffFieldRow, KeyValueRow, ProgressBar, IssueSeverityBadge).
+4. `components/organisms/*` — bağımsız anlamlı tam birimler (Header, LanguageToggle, PageHeader, DataTableShell).
+5. `features/*/*.tsx` — domain bileşenleri (IssueList, OeeTrendChart, KpiCardGrid...).
+6. `app/(dashboard)/**/page.tsx` — sayfa kompozisyonu.
+
+### Katman Yönü (ESLint `boundaries/element-types` ile zorunlu)
+```
+app  →  feature  →  organisms  →  molecules  →  atoms  →  ui
+                                                      │
+                                                      └──→ shared (lib/hooks/stores/types)
+```
+- Ters yön **yasak** (örn. atoms → molecules import edemez).
+- Feature'lar birbirini import edemez; ortak kod `shared`'a taşınır.
+- `shared` (lib/hooks/stores/types) yalnız `shared` ve diğer atomlar kullanabilir; `organisms` ve `feature` shared'ı çağırabilir.
 
 ## UI/UX Öncelikleri (case %10)
 - **Net hata bildirimi:** validation report tablosu (record_id, hata tipi, alan, aksiyon) +

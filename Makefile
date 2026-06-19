@@ -68,34 +68,43 @@ help: ## Bu yardım menüsünü göster (kategorize)
 
 # --- Kurulum --------------------------------------------------------------
 setup: env setup-api setup-web hooks ## .env kopyala + api & web bağımlılıkları + git hooks
-	@echo "$(B)✓ Kurulum tamam.$(R) 'make dev' ile başlat."
+	@printf "$(C_BOLD)$(C_GREEN)✓ Kurulum tamam.$(C_RESET) 'make dev' ile başlat.\n"
 
 env: ## .env örneklerini kopyala (varsa dokunmaz)
+	@printf "$(C_CYAN)→$(C_RESET) .env örnekleri kopyalanıyor\n"
 	@[ -f .env ] || cp .env.example .env && echo "  .env hazır"
 	@[ -f $(WEB_DIR)/.env.local ] || cp $(WEB_DIR)/.env.local.example $(WEB_DIR)/.env.local && echo "  web/.env.local hazır"
 
 setup-api: ## Python venv oluştur + backend bağımlılıkları
+	@printf "$(C_CYAN)→$(C_RESET) Python venv oluşturuluyor: $(VENV)\n"
 	@python3 -m venv $(VENV)
-	@$(PIP) install -q --upgrade pip
-	@$(PIP) install -q -r $(API_DIR)/requirements.txt -r $(API_DIR)/requirements-dev.txt
-	@echo "  ✓ backend bağımlılıkları kuruldu ($(VENV))"
+	@printf "$(C_GREEN)  ✓ venv hazır$(C_RESET)\n"
+	@printf "$(C_CYAN)→$(C_RESET) pip güncelleniyor ($(VENV)/bin/pip)\n"
+	@$(PIP) install --upgrade pip
+	@printf "$(C_GREEN)  ✓ pip güncellendi$(C_RESET)\n"
+	@printf "$(C_CYAN)→$(C_RESET) backend bağımlılıkları indiriliyor: $(API_DIR)/requirements*.txt\n"
+	@$(PIP) install -r $(API_DIR)/requirements.txt -r $(API_DIR)/requirements-dev.txt
+	@printf "$(C_GREEN)  ✓ backend bağımlılıkları kuruldu$(C_RESET)\n"
 
 setup-web: ## Frontend bağımlılıkları (npm install)
-	@cd $(WEB_DIR) && npm install --silent
-	@echo "  ✓ frontend bağımlılıkları kuruldu"
+	@printf "$(C_CYAN)→$(C_RESET) npm bağımlılıkları indiriliyor: $(WEB_DIR)/package.json\n"
+	@cd $(WEB_DIR) && npm install --no-audit --no-fund --loglevel=error
+	@printf "$(C_GREEN)  ✓ frontend bağımlılıkları kuruldu$(C_RESET)\n"
 
 # --- Geliştirme -----------------------------------------------------------
 dev: ## api (:8000) + web (:3000) birlikte çalıştır
-	@echo "$(B)Başlatılıyor:$(R) api→:$(API_PORT)  web→:$(WEB_PORT)  (Ctrl-C ile dur)"
+	@printf "$(C_BOLD)→$(C_RESET) Başlatılıyor: api→:$(API_PORT)  web→:$(WEB_PORT)  (Ctrl-C ile dur)\n"
 	@trap 'kill 0' INT TERM; \
 	( cd $(API_DIR) && ../$(UVICORN) app.main:app --reload --port $(API_PORT) ) & \
 	( cd $(WEB_DIR) && npm run dev ) & \
 	wait
 
 dev-api: ## Sadece FastAPI (reload, :8000)
+	@printf "$(C_CYAN)→$(C_RESET) FastAPI: http://localhost:$(API_PORT) (reload)\n"
 	@cd $(API_DIR) && ../$(UVICORN) app.main:app --reload --port $(API_PORT)
 
 dev-web: ## Sadece Next.js (:3000)
+	@printf "$(C_CYAN)→$(C_RESET) Next.js: http://localhost:$(WEB_PORT)\n"
 	@cd $(WEB_DIR) && npm run dev
 
 dev-stop: ## :8000 ve :3000 portlarını tutan süreçleri öldür (stale port hatası çözümü)
@@ -111,11 +120,12 @@ dev-stop: ## :8000 ve :3000 portlarını tutan süreçleri öldür (stale port h
 
 # --- Production ------------------------------------------------------------
 build: ## Frontend üretim build'i (.next/standalone, optimize edilmiş bundle)
+	@printf "$(C_CYAN)→$(C_RESET) frontend build (.next/) başlatıldı\n"
 	@cd $(WEB_DIR) && npm run build
-	@echo "  ✓ frontend build tamam (production mode'da sayfa geçişleri hızlıdır)"
+	@printf "$(C_GREEN)  ✓ frontend build tamam$(C_RESET)\n"
 
 prod: build ## ★ Üretim sunucusu: build sonrası api + web (dev compile yavaşlığı yok)
-	@echo "$(B)Üretim başlatılıyor:$(R) api→:$(API_PORT)  web→:$(WEB_PORT)  (Ctrl-C ile dur)"
+	@printf "$(C_BOLD)→$(C_RESET) Üretim başlatılıyor: api→:$(API_PORT)  web→:$(WEB_PORT)  (Ctrl-C ile dur)\n"
 	@trap 'kill 0' INT TERM; \
 	( cd $(API_DIR) && ../$(UVICORN) app.main:app --host 0.0.0.0 --port $(API_PORT) ) & \
 	( cd $(WEB_DIR) && npm run start -- -p $(WEB_PORT) ) & \
@@ -126,7 +136,7 @@ prod-stop: dev-stop ## production süreçlerini durdur (:8000, :3000)
 # --- Veritabanı -----------------------------------------------------------
 db-init: ## SQLite şemasını oluştur
 	@cd $(API_DIR) && ../$(PY) -m app.db.init_db
-	@echo "  ✓ DB şeması hazır"
+	@printf "$(C_GREEN)  ✓ DB şeması hazır$(C_RESET)\n"
 
 db-reset: clean-db db-init ## DB'yi sil + yeniden oluştur
 

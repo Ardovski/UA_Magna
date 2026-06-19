@@ -1,6 +1,6 @@
 "use client";
 
-import { Inbox } from "lucide-react";
+import { memo } from "react";
 import {
   Bar,
   BarChart,
@@ -13,8 +13,9 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/atoms";
+import { oeeTone } from "@/components/molecules";
 import { useT } from "@/lib/i18n";
-import { oeeTone } from "./KpiCard";
 import { useStationRanking } from "./useDashboardData";
 
 function oeeBarColor(v: number | null): string {
@@ -24,7 +25,7 @@ function oeeBarColor(v: number | null): string {
   return "hsl(var(--oee-low))";
 }
 
-export function StationRankingChart() {
+function StationRankingChartInner() {
   const t = useT();
   const q = useStationRanking(10);
   const rows = (q.data ?? []).slice(0, 10);
@@ -40,14 +41,12 @@ export function StationRankingChart() {
         {q.isLoading ? (
           <Skeleton className="h-72 w-full" />
         ) : rows.length === 0 ? (
-          <div className="flex h-72 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
-            <Inbox className="h-8 w-8 opacity-60" />
-            <p>{t("common.noData")}</p>
-          </div>
+          <EmptyState title={t("common.noData")} className="h-72" />
         ) : (
           <ResponsiveContainer
             width="100%"
             height={Math.max(288, rows.length * 36)}
+            debounce={50}
           >
             <BarChart
               layout="vertical"
@@ -92,4 +91,4 @@ export function StationRankingChart() {
   );
 }
 
-export { oeeTone };
+export const StationRankingChart = memo(StationRankingChartInner);

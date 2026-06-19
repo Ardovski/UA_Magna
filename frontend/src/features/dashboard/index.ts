@@ -1,7 +1,5 @@
 export { DashboardPage } from "./DashboardPage";
 export { DashboardHeader } from "./DashboardHeader";
-export { KpiCard, oeeTone } from "./KpiCard";
-export type { KpiTrend, TrendDirection } from "./KpiCard";
 export { KpiCardGrid } from "./KpiCardGrid";
 export { OeeTrendChart } from "./OeeTrendChart";
 export { ShiftComparisonChart } from "./ShiftComparisonChart";

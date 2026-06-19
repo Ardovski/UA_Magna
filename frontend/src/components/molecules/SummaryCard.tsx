@@ -5,9 +5,9 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
-type Tone = "good" | "mid" | "low" | "neutral";
+export type SummaryTone = "good" | "mid" | "low" | "neutral";
 
-export function oeeTone(v: number | null | undefined): Tone {
+export function oeeTone(v: number | null | undefined): SummaryTone {
   if (v === null || v === undefined) return "neutral";
   if (v >= 85) return "good";
   if (v >= 60) return "mid";
@@ -16,23 +16,23 @@ export function oeeTone(v: number | null | undefined): Tone {
 
 export type TrendDirection = "up" | "down" | "flat";
 
-export interface KpiTrend {
+export interface SummaryTrend {
   value: number;
   direction: TrendDirection;
 }
 
-export interface KpiCardProps {
+export interface SummaryCardProps {
   label: string;
   value: string;
-  icon: React.ReactNode;
-  trend?: KpiTrend | null;
-  tone?: Tone;
+  icon?: React.ReactNode;
+  trend?: SummaryTrend | null;
+  tone?: SummaryTone;
   inverted?: boolean;
   hint?: string;
   loading?: boolean;
 }
 
-function trendColor(tone: Tone, inverted: boolean, dir: TrendDirection): string {
+function trendColor(tone: SummaryTone, inverted: boolean, dir: TrendDirection): string {
   if (dir === "flat") return "text-muted-foreground";
   const isUp = dir === "up";
   if (inverted) return isUp ? "text-oee-low" : "text-oee-good";
@@ -46,7 +46,7 @@ function trendArrow(dir: TrendDirection): React.ReactNode {
   return <Minus className="h-3 w-3" />;
 }
 
-export function KpiCard({
+export function SummaryCard({
   label,
   value,
   icon,
@@ -55,13 +55,13 @@ export function KpiCard({
   inverted,
   hint,
   loading,
-}: KpiCardProps) {
-  const t: Tone = tone ?? "neutral";
+}: SummaryCardProps) {
+  const t: SummaryTone = tone ?? "neutral";
   return (
     <Card className="transition-shadow hover:shadow-md">
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
-          <span className="text-muted-foreground">{icon}</span>
+          {icon ? <span className="text-muted-foreground">{icon}</span> : null}
           {label}
         </CardTitle>
         {trend ? (

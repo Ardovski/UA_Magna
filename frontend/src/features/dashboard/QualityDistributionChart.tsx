@@ -1,6 +1,6 @@
 "use client";
 
-import { Inbox } from "lucide-react";
+import { memo } from "react";
 import {
   Bar,
   BarChart,
@@ -12,10 +12,11 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/atoms";
 import { useT } from "@/lib/i18n";
 import { useQualityDistribution } from "./useDashboardData";
 
-export function QualityDistributionChart() {
+function QualityDistributionChartInner() {
   const t = useT();
   const q = useQualityDistribution();
   const data = q.data ?? [];
@@ -31,12 +32,9 @@ export function QualityDistributionChart() {
         {q.isLoading ? (
           <Skeleton className="h-72 w-full" />
         ) : data.length === 0 ? (
-          <div className="flex h-72 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
-            <Inbox className="h-8 w-8 opacity-60" />
-            <p>{t("common.noData")}</p>
-          </div>
+          <EmptyState title={t("common.noData")} className="h-72" />
         ) : (
-          <ResponsiveContainer width="100%" height={288}>
+          <ResponsiveContainer width="100%" height={288} debounce={50}>
             <BarChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
               <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
               <XAxis
@@ -77,3 +75,5 @@ export function QualityDistributionChart() {
     </Card>
   );
 }
+
+export const QualityDistributionChart = memo(QualityDistributionChartInner);

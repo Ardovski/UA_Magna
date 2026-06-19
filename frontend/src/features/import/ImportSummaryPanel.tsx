@@ -53,12 +53,49 @@ export function ImportSummaryPanel({ summary }: { summary: ImportSummary }) {
 
       <CardContent className="space-y-5">
         {summary.duplicate_file && (
-          <div className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-sm">
+          <div
+            role="alert"
+            data-testid="import-summary-duplicate-file"
+            className="flex items-start gap-2 rounded-md border border-warning/40 bg-warning/10 p-3 text-sm"
+          >
             <FileWarning className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
             <span>
               {t("import.importSummaryPanel.duplicateFileNoticePrefix")}{" "}
               <code>file_hash</code>).{" "}
               {t("import.importSummaryPanel.duplicateFileNoticeSuffix")}
+            </span>
+          </div>
+        )}
+
+        {/* Duplicate satır uyarısı: dosya farklı ama içerik aynı olan satırlar atlandı. */}
+        {summary.duplicate_row_skipped > 0 && (
+          <div
+            role="status"
+            data-testid="import-summary-duplicate-rows"
+            className="flex items-start gap-2 rounded-md border border-warning/30 bg-warning/5 p-3 text-sm"
+          >
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-warning" />
+            <span>
+              <strong className="text-warning">
+                {t("import.importSummaryPanel.duplicateRowsNoticeTitle")}
+              </strong>{" "}
+              {t("import.importSummaryPanel.duplicateRowsNoticeDesc", {
+                n: summary.duplicate_row_skipped,
+              })}
+            </span>
+          </div>
+        )}
+
+        {/* Hiç yeni satır eklenmedi → operatöre net bilgi. */}
+        {summary.total_rows > 0 && summary.imported_rows === 0 && (
+          <div
+            role="alert"
+            data-testid="import-summary-no-new"
+            className="flex items-start gap-2 rounded-md border border-destructive/40 bg-destructive/10 p-3 text-sm"
+          >
+            <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-destructive" />
+            <span className="text-destructive">
+              {t("import.importSummaryPanel.noNewRecordsTitle")}
             </span>
           </div>
         )}

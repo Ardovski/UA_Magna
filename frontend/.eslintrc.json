@@ -8,9 +8,13 @@
     "boundaries/elements": [
       { "type": "app", "pattern": "src/app", "mode": "folder" },
       { "type": "feature", "pattern": "src/features/*", "mode": "folder", "capture": ["featureName"] },
+      { "type": "ui", "pattern": "src/components/ui", "mode": "folder" },
+      { "type": "atoms", "pattern": "src/components/atoms", "mode": "folder" },
+      { "type": "molecules", "pattern": "src/components/molecules", "mode": "folder" },
+      { "type": "organisms", "pattern": "src/components/organisms", "mode": "folder" },
       {
         "type": "shared",
-        "pattern": ["src/components", "src/lib", "src/hooks", "src/stores", "src/types"],
+        "pattern": ["src/lib", "src/hooks", "src/stores", "src/types"],
         "mode": "folder"
       }
     ],
@@ -21,13 +25,13 @@
       "error",
       {
         "default": "disallow",
-        "message": "Mimari sınır ihlali: bir feature başka bir feature'ı import edemez. Ortak kod 'shared' (components/lib/hooks/stores/types) içine taşınmalı.",
+        "message": "Mimari sınır ihlali: katman yönü (ui/atoms → molecules → organisms → feature → app) tersinmez; feature'lar birbirini import edemez; ortak kod shared/ui/atoms/molecules/organisms'a taşınmalı.",
         "rules": [
-          { "from": ["app"], "allow": ["app", "feature", "shared"] },
-          {
-            "from": ["feature"],
-            "allow": ["shared", ["feature", { "featureName": "${from.featureName}" }]]
-          },
+          { "from": ["app"], "allow": ["app", "feature", "ui", "atoms", "molecules", "organisms", "shared"] },
+          { "from": ["feature"], "allow": ["ui", "atoms", "molecules", "organisms", "shared", ["feature", { "featureName": "${from.featureName}" }]] },
+          { "from": ["organisms"], "allow": ["ui", "atoms", "molecules", "organisms", "shared"] },
+          { "from": ["molecules"], "allow": ["ui", "atoms", "molecules", "shared"] },
+          { "from": ["atoms", "ui"], "allow": ["ui", "atoms", "shared"] },
           { "from": ["shared"], "allow": ["shared"] }
         ]
       }

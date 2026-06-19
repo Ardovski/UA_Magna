@@ -1,6 +1,6 @@
 "use client";
 
-import { Inbox } from "lucide-react";
+import { memo } from "react";
 import {
   Legend,
   PolarAngleAxis,
@@ -11,6 +11,7 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/atoms";
 import { useT } from "@/lib/i18n";
 import { useShiftComparison } from "./useDashboardData";
 import type { ShiftComparisonRow } from "./types";
@@ -21,7 +22,7 @@ const SHIFT_COLORS: string[] = [
   "hsl(var(--chart-3))",
 ];
 
-export function ShiftComparisonChart() {
+function ShiftComparisonChartInner() {
   const t = useT();
   const q = useShiftComparison();
   const data: ShiftComparisonRow[] = q.data ?? [];
@@ -37,12 +38,9 @@ export function ShiftComparisonChart() {
         {q.isLoading ? (
           <Skeleton className="h-72 w-full" />
         ) : data.length === 0 ? (
-          <div className="flex h-72 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
-            <Inbox className="h-8 w-8 opacity-60" />
-            <p>{t("common.noData")}</p>
-          </div>
+          <EmptyState title={t("common.noData")} className="h-72" />
         ) : (
-          <ResponsiveContainer width="100%" height={288}>
+          <ResponsiveContainer width="100%" height={288} debounce={50}>
             <RadialBarChart
               innerRadius="20%"
               outerRadius="100%"
@@ -85,3 +83,5 @@ export function ShiftComparisonChart() {
     </Card>
   );
 }
+
+export const ShiftComparisonChart = memo(ShiftComparisonChartInner);

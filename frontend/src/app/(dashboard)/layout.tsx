@@ -1,4 +1,4 @@
-import { Header } from "@/components/layout/Header";
+import { Header } from "@/components/organisms";
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (

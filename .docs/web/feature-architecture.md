@@ -31,12 +31,16 @@ Dışarıdan kullanım: `import { X } from "@/features/<feature>"` (index üzeri
 ## Shared Yapısı (ortak)
 | Dizin | İçerik |
 |-------|--------|
-| `components/ui` | shadcn/ui primitifleri |
-| `components` | birden fazla feature'ın paylaştığı domain bileşenleri |
-| `lib` | api client, env, utils, query-keys, constants |
+| `components/ui` | shadcn/ui primitifleri (Button, Card, Table, Dialog, Slider, Toast...) |
+| `components/atoms` | shadcn üstü küçük, tek sorumluluklu bağımsız birimler (EmptyState, FieldLabel, SkeletonText, StatusDot) |
+| `components/molecules` | 2+ atom veya shadcn primitive'inden oluşan jenerik birimler (SummaryCard, DiffFieldRow, KeyValueRow, ProgressBar, IssueSeverityBadge) |
+| `components/organisms` | bağımsız tam birimler (Header, LanguageToggle, PageHeader, DataTableShell) |
+| `lib` | api client, env, utils, query-keys, constants, i18n |
 | `hooks` | genel (feature'dan bağımsız) hook'lar |
 | `stores` | global UI-state (Zustand) |
 | `types` | paylaşılan domain tipleri |
+
+Her alt katman için README.md: rolü, neyi import edebileceği, sınırları.
 
 ## Karar Senaryoları: "X nereye gider?"
 | Senaryo | Yer |

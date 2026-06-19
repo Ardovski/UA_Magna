@@ -22,7 +22,13 @@ export function ValidationPage() {
   const t = useT();
 
   const onExport = () => {
+    toast.push({ tone: "default", title: t("validation.validationPage.exportStarted") });
     exportXlsx.mutate(undefined, {
+      onSuccess: () =>
+        toast.push({
+          tone: "success",
+          title: t("validation.validationPage.exportSuccess"),
+        }),
       onError: () =>
         toast.push({ tone: "destructive", title: t("validation.validationPage.exportError") }),
     });
@@ -30,14 +36,15 @@ export function ValidationPage() {
 
   const onRun = () => {
     run.mutate(undefined, {
-      onSuccess: (d) =>
+      onSuccess: (d) => {
         toast.push({
           tone: "success",
           title: t("validation.validationPage.runSuccessTitle"),
           description: t("validation.validationPage.runSuccessDescription", {
             n: d.record_count,
           }),
-        }),
+        });
+      },
       onError: () =>
         toast.push({
           tone: "destructive",

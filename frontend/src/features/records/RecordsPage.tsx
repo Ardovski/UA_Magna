@@ -1,12 +1,12 @@
 "use client";
 
 import { useEffect, useRef, useState } from "react";
-import { useSearchParams, useRouter, usePathname } from "next/navigation";
+import { useSearchParams } from "next/navigation";
 import { ExportButton } from "./ExportButton";
 import { FilterPanel } from "./FilterPanel";
 import { RecordsTable } from "./RecordsTable";
-import { useDebouncedFilter, useRecords } from "./useRecords";
-import { filterStateToQuery, queryToFilterState, useRecordsFilterStore } from "@/stores/filters";
+import { useRecords } from "./useRecords";
+import { queryToFilterState, useRecordsFilterStore } from "@/stores/filters";
 import { useT } from "@/lib/i18n";
 
 export function RecordsPage() {
@@ -14,10 +14,7 @@ export function RecordsPage() {
   const [page, setPage] = useState(1);
   const [size] = useState(50);
   const filter = useRecordsFilterStore();
-  const debounced = useDebouncedFilter(filter, 300);
   const searchParams = useSearchParams();
-  const router = useRouter();
-  const pathname = usePathname();
 
   // URL → store hidrasyonu yalnız mount'ta bir kez. `filter`'a bağımlı olmak
   // sonsuz döngü yaratır: hydrate → store değişir → yeni referans → effect → …
@@ -30,6 +27,8 @@ export function RecordsPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // useRecords kendi içinde 300ms debounce yapar → aynı paylaşılan queryKey ile
+  // RecordsPage ve RecordsTable çağrıları TanStack Query dedupe edilir.
   const records = useRecords(page, size);
 
   useEffect(() => {
@@ -39,22 +38,21 @@ export function RecordsPage() {
     }
   }, [records.data, page]);
 
-  useEffect(() => {
-    const q = filterStateToQuery(debounced);
-    const url = q ? `${pathname}?${q}` : pathname;
-    router.replace(url, { scroll: false });
-  }, [debounced, pathname, router]);
-
+  // Filter değiştiğinde → sayfa 1'e dön.
   useEffect(() => {
     setPage(1);
-  }, [debounced]);
+  }, [filter]);
 
   return (
     <main className="container mx-auto space-y-4 py-8">
       <header className="flex items-end justify-between">
         <div>
-          <p className="font-mono text-sm text-muted-foreground">MAGNA · {t("records.recordsPage.breadcrumb")}</p>
-          <h1 className="mt-1 text-3xl font-bold tracking-tight">{t("records.recordsPage.title")}</h1>
+          <p className="font-mono text-sm text-muted-foreground">
+            MAGNA · {t("records.recordsPage.breadcrumb")}
+          </p>
+          <h1 className="mt-1 text-3xl font-bold tracking-tight">
+            {t("records.recordsPage.title")}
+          </h1>
         </div>
         <ExportButton />
       </header>

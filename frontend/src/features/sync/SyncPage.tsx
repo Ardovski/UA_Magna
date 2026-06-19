@@ -31,16 +31,24 @@ export function SyncPage() {
     if (!preview.data) return;
     // Yalnız hedef API'ye uyumlu (target_valid=true) gruplar seçilir — uyumsuzlar
     // seçilse bile backend bunları göndermeyi reddedeceği için UX olarak göstermiyoruz.
-    setSelected(
-      new Set(
-        preview.data.groups
-          .filter((g) => g.target_valid ?? true)
-          .map((g) => g.idempotency_key),
-      ),
-    );
+    const eligible = preview.data.groups.filter((g) => g.target_valid ?? true);
+    setSelected(new Set(eligible.map((g) => g.idempotency_key)));
+    if (eligible.length === 0) {
+      toast.push({ tone: "warning", title: t("sync.toast.selectAllNone") });
+    } else {
+      toast.push({
+        tone: "default",
+        title: t("sync.toast.selectAll"),
+        description: `${eligible.length} grup`,
+      });
+    }
   };
 
-  const clearAll = () => setSelected(new Set());
+  const clearAll = () => {
+    if (selected.size === 0) return;
+    setSelected(new Set());
+    toast.push({ tone: "default", title: t("sync.toast.clear") });
+  };
 
   const onSubmit = () => {
     const groups = preview.data?.groups ?? [];

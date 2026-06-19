@@ -12,15 +12,33 @@ import {
 } from "@/stores/filters";
 import type { FilterOptions, PaginatedRecords } from "./types";
 
-export function useRecords(page: number, size: number, sort?: string) {
+/**
+ * `useRecordsFilterStore` üzerindeki her değişimi (slider onCommit, text input
+ * keystroke, checkbox toggle, vs.) `debounceMs` boyunca toplar ve tek bir
+ * stable filter snapshot'ı döner. Hook içinde kullanıldığı için tüm
+ * `useRecords` çağıranları aynı paylaşılan queryKey'e sahip olur → TanStack
+ * Query dedupe ile slider sürükleme boyunca **0 istek**, bırakınca **1 istek**.
+ */
+function useDebouncedFilter(filter: RecordsFilterState, ms: number): RecordsFilterState {
+  const [debounced, setDebounced] = useState<RecordsFilterState>(filter);
+  useEffect(() => {
+    const id = setTimeout(() => setDebounced(filter), ms);
+    return () => clearTimeout(id);
+  }, [filter, ms]);
+  return debounced;
+}
+
+export function useRecords(page: number, size: number, sort?: string, debounceMs = 300) {
   const filter = useRecordsFilterStore();
-  const q = filterStateToQuery(filter);
+  const stable = useDebouncedFilter(filter, debounceMs);
+  const q = filterStateToQuery(stable);
   const sortParam = sort ? `&sort=${encodeURIComponent(sort)}` : "";
   return useQuery({
-    queryKey: [...queryKeys.records.list(filter), page, size, sort ?? null] as const,
+    queryKey: [...queryKeys.records.list(stable), page, size, sort ?? null] as const,
     queryFn: () =>
       api.get<PaginatedRecords>(`/api/v1/records/list?${q}${sortParam}&page=${page}&size=${size}`),
     placeholderData: (prev) => prev,
+    staleTime: 30_000,
   });
 }
 
@@ -32,11 +50,12 @@ export function useFilterOptions() {
   });
 }
 
-export function useExportCsv() {
+export function useExportCsv(debounceMs = 300) {
   const filter = useRecordsFilterStore();
+  const stable = useDebouncedFilter(filter, debounceMs);
   return useMutation({
     mutationFn: async () => {
-      const q = filterStateToQuery(filter);
+      const q = filterStateToQuery(stable);
       const res = await fetch(`${env.apiUrl}/api/v1/records/export?${q}`, { method: "GET" });
       if (!res.ok) throw new Error(`export failed: ${res.status}`);
       const blob = await res.blob();
@@ -53,13 +72,4 @@ export function useExportCsv() {
       URL.revokeObjectURL(url);
     },
   });
-}
-
-export function useDebouncedFilter(filter: RecordsFilterState, ms: number = 300): RecordsFilterState {
-  const [debounced, setDebounced] = useState<RecordsFilterState>(filter);
-  useEffect(() => {
-    const id = setTimeout(() => setDebounced(filter), ms);
-    return () => clearTimeout(id);
-  }, [filter, ms]);
-  return debounced;
 }

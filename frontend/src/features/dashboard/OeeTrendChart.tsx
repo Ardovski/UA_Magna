@@ -1,6 +1,6 @@
 "use client";
 
-import { Inbox } from "lucide-react";
+import { memo } from "react";
 import {
   Area,
   AreaChart,
@@ -12,10 +12,11 @@ import {
 } from "recharts";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import { EmptyState } from "@/components/atoms";
 import { useT } from "@/lib/i18n";
 import { useOeeTrend } from "./useDashboardData";
 
-export function OeeTrendChart() {
+function OeeTrendChartInner() {
   const t = useT();
   const q = useOeeTrend(21);
   const data = q.data ?? [];
@@ -31,9 +32,9 @@ export function OeeTrendChart() {
         {q.isLoading ? (
           <Skeleton className="h-72 w-full" />
         ) : data.length === 0 ? (
-          <EmptyChart label={t("common.noData")} />
+          <EmptyState title={t("common.noData")} className="h-72" />
         ) : (
-          <ResponsiveContainer width="100%" height={288}>
+          <ResponsiveContainer width="100%" height={288} debounce={50}>
             <AreaChart data={data} margin={{ top: 8, right: 16, bottom: 8, left: 0 }}>
               <defs>
                 <linearGradient id="oeeGradient" x1="0" y1="0" x2="0" y2="1">
@@ -78,11 +79,4 @@ export function OeeTrendChart() {
   );
 }
 
-function EmptyChart({ label }: { label: string }) {
-  return (
-    <div className="flex h-72 flex-col items-center justify-center gap-2 text-sm text-muted-foreground">
-      <Inbox className="h-8 w-8 opacity-60" />
-      <p>{label}</p>
-    </div>
-  );
-}
+export const OeeTrendChart = memo(OeeTrendChartInner);

@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import { env } from "@/lib/env";
 import { queryKeys } from "@/lib/query-keys";
-import type { IssueFilter, RecordEdit, ValidationIssue, ValidationSummary } from "./types";
+import type { IssueFilter, RecordDetail, RecordEdit, ValidationIssue, ValidationSummary } from "./types";
 
 export function useIssues(filter: IssueFilter) {
   const p = new URLSearchParams();
@@ -26,9 +26,18 @@ export function useValidationSummary() {
   });
 }
 
-export function useRecordEdits(recordId: number) {
+export function useRecordDetail(recordId: number) {
   return useQuery({
     queryKey: queryKeys.records.detail(recordId),
+    queryFn: () => api.get<RecordDetail>(`/api/v1/records/${recordId}`),
+    enabled: recordId > 0,
+    staleTime: 30_000,
+  });
+}
+
+export function useRecordEdits(recordId: number) {
+  return useQuery({
+    queryKey: [...queryKeys.records.detail(recordId), "edits"] as const,
     queryFn: () => api.get<RecordEdit[]>(`/api/v1/validation/records/${recordId}/edits`),
     enabled: recordId > 0,
   });
@@ -46,9 +55,11 @@ export function useFixRecord() {
         `/api/v1/validation/records/${recordId}/fix`,
         patch,
       ),
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: queryKeys.validation.issues({}) });
       qc.invalidateQueries({ queryKey: queryKeys.validation.summary });
+      qc.invalidateQueries({ queryKey: queryKeys.records.detail(vars.recordId) });
+      qc.invalidateQueries({ queryKey: queryKeys.records.list({}) });
     },
   });
 }
@@ -61,9 +72,11 @@ export function useRejectRecord() {
         `/api/v1/validation/records/${recordId}/reject`,
         { reason: reason ?? null },
       ),
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: queryKeys.validation.issues({}) });
       qc.invalidateQueries({ queryKey: queryKeys.validation.summary });
+      qc.invalidateQueries({ queryKey: queryKeys.records.detail(vars.recordId) });
+      qc.invalidateQueries({ queryKey: queryKeys.records.list({}) });
     },
   });
 }
@@ -76,9 +89,11 @@ export function useAcceptRecord() {
         `/api/v1/validation/records/${recordId}/accept`,
         { reason: reason ?? null },
       ),
-    onSuccess: () => {
+    onSuccess: (_data, vars) => {
       qc.invalidateQueries({ queryKey: queryKeys.validation.issues({}) });
       qc.invalidateQueries({ queryKey: queryKeys.validation.summary });
+      qc.invalidateQueries({ queryKey: queryKeys.records.detail(vars.recordId) });
+      qc.invalidateQueries({ queryKey: queryKeys.records.list({}) });
     },
   });
 }
@@ -109,6 +124,7 @@ export function useRunValidation() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: queryKeys.validation.summary });
       qc.invalidateQueries({ queryKey: queryKeys.validation.issues({}) });
+      qc.invalidateQueries({ queryKey: queryKeys.records.list({}) });
     },
   });
 }

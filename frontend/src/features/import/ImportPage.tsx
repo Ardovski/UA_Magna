@@ -74,10 +74,41 @@ export function ImportPage() {
     }
     setFiles(csvs);
     setPhase("previewing");
+    toast.push({ tone: "default", title: t("import.toast.previewing") });
     try {
       const pv = await previewMut.mutateAsync(csvs[0]);
       setPreview(pv);
       setPhase("preview");
+
+      // 0 kolon veya 0 satır → operatöre açık uyarı (panelde de banner var, toast
+      // ile birlikte "kaçırma riski" sıfıra iner).
+      if (pv.detected_columns.length === 0) {
+        toast.push({
+          tone: "destructive",
+          title: t("import.toast.previewNoColumnsTitle"),
+          description: t("import.toast.previewNoColumnsDesc"),
+        });
+      } else if (pv.total_rows === 0) {
+        toast.push({
+          tone: "warning",
+          title: t("import.toast.previewNoRowsTitle"),
+          description: t("import.toast.previewNoRowsDesc"),
+        });
+      } else {
+        toast.push({
+          tone: "success",
+          title:
+            csvs.length > 1
+              ? t("import.toast.previewReadyMulti", {
+                  files: csvs.length,
+                  rows: pv.total_rows,
+                })
+              : t("import.toast.previewReady", {
+                  rows: pv.total_rows,
+                  cols: pv.detected_columns.length,
+                }),
+        });
+      }
     } catch {
       toast.push({ tone: "destructive", title: t("import.importPage.previewFailed") });
       reset();
@@ -87,6 +118,7 @@ export function ImportPage() {
   async function confirmImport() {
     if (!files.length) return;
     setPhase("importing");
+    toast.push({ tone: "default", title: t("import.toast.importing") });
     const results: ImportSummary[] = [];
     try {
       for (const file of files) {
@@ -107,14 +139,48 @@ export function ImportPage() {
     if (lastId != null) await activate.mutateAsync(lastId);
     setSummary(combined);
     setPhase("done");
-    toast.push({
-      tone: "success",
-      title: t("import.importPage.imported"),
-      description: t("import.importPage.importedRows", {
-        imported: combined.imported_rows,
-        total: combined.total_rows,
-      }),
-    });
+
+    // 1) Duplicate dosya: aynı file_hash DB'de zaten var → operatöre net uyarı.
+    if (combined.duplicate_file) {
+      toast.push({
+        tone: "warning",
+        title: t("import.toast.duplicateFileTitle"),
+        description: t("import.toast.duplicateFileDesc", {
+          skipped: combined.duplicate_row_skipped,
+          imported: combined.imported_rows,
+        }),
+      });
+    }
+    // 2) Duplicate satırlar (farklı dosya ama aynı satır içeriği) → info.
+    else if (combined.duplicate_row_skipped > 0) {
+      toast.push({
+        tone: "default",
+        title: t("import.toast.duplicateRowsTitle"),
+        description: t("import.toast.duplicateRowsDesc", {
+          skipped: combined.duplicate_row_skipped,
+        }),
+      });
+    }
+    // 3) Hiç satır eklenmedi (duplicate veya boş) → warning.
+    if (combined.imported_rows === 0 && combined.total_rows > 0) {
+      toast.push({
+        tone: "warning",
+        title: t("import.toast.noNewRowsTitle"),
+        description: t("import.toast.noNewRowsDesc", {
+          total: combined.total_rows,
+          skipped: combined.duplicate_row_skipped,
+        }),
+      });
+    } else if (!combined.duplicate_file) {
+      toast.push({
+        tone: "success",
+        title: t("import.toast.importSuccess"),
+        description: t("import.toast.importSuccessDesc", {
+          imported: combined.imported_rows,
+          rejected: combined.parse_failed_count + (combined.duplicate_row_skipped ?? 0),
+        }),
+      });
+    }
   }
 
   return (
