@@ -1,5 +1,6 @@
 "use client";
 
+import { useToast } from "@/components/ui/toast";
 import { useT } from "@/lib/i18n";
 
 import { useRetryAll, useRetrySync, useSyncHistory } from "./useSync";
@@ -24,6 +25,7 @@ function statusClass(status: string): string {
 
 export function HistoryTable() {
   const t = useT();
+  const toast = useToast();
   const history = useSyncHistory();
   const retry = useRetrySync();
   const retryAll = useRetryAll();
@@ -41,7 +43,21 @@ export function HistoryTable() {
         <button
           type="button"
           disabled={retriableCount === 0 || retryAll.isPending}
-          onClick={() => retryAll.mutate()}
+          onClick={() =>
+            retryAll.mutate(undefined, {
+              onSuccess: (data) =>
+                toast.push({
+                  tone: "success",
+                  title: t("sync.syncPage.retryAllSuccess"),
+                  description: t("sync.syncPage.retryAllSuccessDesc", { n: data.queued }),
+                }),
+              onError: () =>
+                toast.push({
+                  tone: "destructive",
+                  title: t("sync.syncPage.retryAllFailed"),
+                }),
+            })
+          }
           className="rounded-md border bg-background px-3 py-1.5 text-xs font-medium text-foreground hover:bg-muted disabled:opacity-50"
         >
           {retryAll.isPending
@@ -60,19 +76,20 @@ export function HistoryTable() {
             <th className="p-2 text-right">{t("sync.historyTable.colAttempts")}</th>
             <th className="p-2">{t("sync.historyTable.colLastAttempt")}</th>
             <th className="p-2">{t("sync.historyTable.colTargetId")}</th>
+            <th className="p-2">{t("sync.historyTable.colResponse")}</th>
             <th className="p-2"></th>
           </tr>
         </thead>
         <tbody>
           {history.isLoading ? (
             <tr>
-              <td colSpan={9} className="p-4 text-center text-muted-foreground">
+              <td colSpan={10} className="p-4 text-center text-muted-foreground">
                 {t("common.loading")}
               </td>
             </tr>
           ) : rows.length === 0 ? (
             <tr>
-              <td colSpan={9} className="p-4 text-center text-muted-foreground">
+              <td colSpan={10} className="p-4 text-center text-muted-foreground">
                 {t("sync.historyTable.empty")}
               </td>
             </tr>
@@ -91,6 +108,9 @@ export function HistoryTable() {
                 <td className="p-2 text-right tabular-nums">{s.attempts}</td>
                 <td className="p-2 font-mono text-xs">{fmtDate(s.last_attempt_at)}</td>
                 <td className="p-2 font-mono">{s.target_submission_id ?? "—"}</td>
+                <td className="p-2 text-xs text-muted-foreground" title={s.target_message ?? undefined}>
+                  {s.target_candidate_name ?? (s.target_message ? "…" : "—")}
+                </td>
                 <td className="p-2">
                   {s.status === "failed" || s.status === "retrying" ? (
                     (() => {
@@ -102,7 +122,21 @@ export function HistoryTable() {
                           type="button"
                           className="rounded-md border bg-background px-2 py-1 text-xs text-foreground hover:bg-muted disabled:opacity-50"
                           disabled={isThisRetrying}
-                          onClick={() => retry.mutate(s.id)}
+                          onClick={() =>
+                            retry.mutate(s.id, {
+                              onSuccess: () =>
+                                toast.push({
+                                  tone: "success",
+                                  title: t("sync.syncPage.retrySuccess"),
+                                  description: t("sync.syncPage.retrySuccessDesc", { id: s.id }),
+                                }),
+                              onError: () =>
+                                toast.push({
+                                  tone: "destructive",
+                                  title: t("sync.syncPage.retryFailed"),
+                                }),
+                            })
+                          }
                         >
                           {isThisRetrying ? "…" : t("common.retry")}
                         </button>
