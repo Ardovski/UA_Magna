@@ -29,6 +29,10 @@ class Settings(BaseSettings):
     # --- Uygulama ---
     app_env: str = "development"
     log_level: str = "INFO"
+    # İlk açılışta data/production_data.csv otomatik seed edilsin mi (1=evet, 0=hayır).
+    # AUTO_SEED=1 + CSV mevcut + DB boşken import edilir; idempotent
+    # (file_hash + row_hash dedupe) — restart'ta no-op. AUTO_SEED=0 ile kapat.
+    auto_seed: bool = True
 
     # --- Veritabanı (SQLite) ---
     # Varsayılan: repo kökündeki db/app.db (mutlak yol → her CWD'den aynı dosya).

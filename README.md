@@ -299,14 +299,21 @@ make dev              # web → http://localhost:3000   ·   api → http://loca
 ```bash
 cp .env.example .env
 
-# Backend
+# Backend (terminal 1)
 cd backend && pip install -r requirements.txt
 uvicorn main:app --reload            # → http://localhost:8000/docs
 
-# Frontend (ayrı terminal)
+# Frontend (terminal 2)
 cd frontend && npm install && npm run dev
 ```
 
+> **Otomatik seed:** `.env.example`'da `AUTO_SEED=1` varsayılan. Backend'in ilk
+> açılışında (`uvicorn main:app` veya `make dev`) `data/production_data.csv`
+> dosyası **otomatik import edilir** (2117 satır, ~1 sn). DB'de batch varsa
+> atlanır (idempotent — file_hash + row_hash dedupe). Veri gelmediyse logu
+> kontrol edin: `seed.ok imported=2117` veya `seed.skipped db_not_empty`.
+> Kapatmak için `.env`'e `AUTO_SEED=0`.
+>
 > **Port notu:** Frontend Next.js olduğu için dev sunucusu `http://localhost:3000`'de açılır
 > (Vite varsayılanı 5173 değil). Tek komutla her ikisi için önerilen yol `make dev`'dir.
 
