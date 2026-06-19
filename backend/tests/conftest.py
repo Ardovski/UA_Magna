@@ -1,4 +1,5 @@
 """Pytest configuration — fresh isolated SQLite per test session."""
+
 from __future__ import annotations
 
 import os
@@ -81,4 +82,3 @@ def sample_csv_bytes() -> bytes:
         b"4,2025-11-06,3022222222,INJ,INJ,IMM-2700-3,STK-4,1,95,98,99,92.06,7.0,0.5,0.3,0.2,15,0\n"
         b"5,11/07/2025,3023333333,INJ,INJ,IMM-2700-4,STK-5,2,80,90,100,72.0,4.0,0.0,0.0,0.0,8,0\n"
     )
-
