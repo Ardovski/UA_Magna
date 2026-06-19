@@ -1,4 +1,5 @@
 """API v1 router toplayıcı. Feature router'ları buraya mount edilir."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter
@@ -14,6 +15,7 @@ api_router = APIRouter()
 
 @api_router.get("/status", tags=["meta"])
 def status() -> dict[str, str]:
+    """v1 API sağlık/sürüm kontrolü — frontend bağlantı doğrulaması için."""
     return {"status": "ok", "api": "v1"}
 
 

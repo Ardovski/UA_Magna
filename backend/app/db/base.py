@@ -7,6 +7,7 @@ buradaki mixin'lere çıkarıldı (DRY); modeller yalnız kendine özgü alanlar
 tanımı tek yere taşır. Mixin'ler `Mapped` attribute sağlar; mapping `Base` ile yapılır
 (`class X(IntIdMixin, Base)`).
 """
+
 from __future__ import annotations
 
 import datetime as dt

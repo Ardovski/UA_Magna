@@ -1,4 +1,5 @@
 """Ingestion API router — preview + import + batch management endpoint'leri."""
+
 from __future__ import annotations
 
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile, status
@@ -20,6 +21,7 @@ router = APIRouter()
 
 @router.post("/preview", response_model=ImportPreview)
 def preview(file: UploadFile = File(...)) -> ImportPreview:
+    """CSV'yi DB'ye yazmadan önizler: kolon tespiti, encoding ve örnek satırlar."""
     if file.filename is None:
         raise HTTPException(status_code=400, detail="filename gerekli")
     data = file.file.read()
@@ -33,6 +35,7 @@ def import_file(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
 ) -> ImportSummary:
+    """CSV'yi normalize edip DB'ye import eder; ardından otomatik validasyon çalışır."""
     if file.filename is None:
         raise HTTPException(status_code=400, detail="filename gerekli")
     data = file.file.read()
@@ -43,11 +46,13 @@ def import_file(
 
 @router.get("/batches", response_model=list[BatchOut])
 def list_batches_endpoint(db: Session = Depends(get_db)) -> list[BatchOut]:
+    """Tüm import batch'lerini (en yeni önce) listeler."""
     return list_batches(db)
 
 
 @router.get("/batches/active", response_model=BatchOut | None)
 def get_active_batch_endpoint(db: Session = Depends(get_db)) -> BatchOut | None:
+    """Aktif batch'i döner; yoksa veya geçersizse None."""
     active_id: int | None = get_active_batch_id(db)
     if active_id is None:
         return None
@@ -62,6 +67,7 @@ def activate_batch_endpoint(
     batch_id: int,
     db: Session = Depends(get_db),
 ) -> BatchOut:
+    """Verilen batch'i aktif batch olarak işaretler (dashboard bunu baz alır)."""
     try:
         result: BatchOut = set_active_batch(db, batch_id)
         db.commit()
@@ -76,6 +82,7 @@ def delete_batch_endpoint(
     batch_id: int,
     db: Session = Depends(get_db),
 ) -> None:
+    """Batch'i ve ona bağlı tüm üretim kayıtlarını siler."""
     try:
         delete_batch(db, batch_id)
         db.commit()

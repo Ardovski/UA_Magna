@@ -3,6 +3,7 @@
 Şema dokümantasyonu (kaynak doğruluk): .docs/api/database.md
 İsimlendirme: tablo snake_case çoğul, kolon snake_case (bkz. .docs/shared/conventions/naming.md).
 """
+
 from __future__ import annotations
 
 import datetime as dt
@@ -143,6 +144,11 @@ class SyncSubmission(IntIdMixin, CreatedAtMixin, Base):
     status: Mapped[str] = mapped_column(String(12), default="pending")
     http_status: Mapped[int | None] = mapped_column(Integer)
     target_submission_id: Mapped[int | None] = mapped_column(Integer)
+    # Hedef API'nin başarılı yanıtından (case §5.5: success, submission_id, candidate_name,
+    # message, submitted_at) yakalanan ek alanlar — operatörün gönderim sonucunu görmesi için.
+    target_candidate_name: Mapped[str | None] = mapped_column(String(120), nullable=True)
+    target_message: Mapped[str | None] = mapped_column(Text, nullable=True)
+    target_submitted_at: Mapped[dt.datetime | None] = mapped_column(DateTime, nullable=True)
     response_body: Mapped[str | None] = mapped_column(Text)
     error_message: Mapped[str | None] = mapped_column(Text)
     attempts: Mapped[int] = mapped_column(Integer, default=0)

@@ -1,4 +1,5 @@
 """CLI seed — `python -m app.features.ingestion.seed <csv_path>`."""
+
 from __future__ import annotations
 
 import argparse
@@ -10,6 +11,7 @@ from app.features.ingestion.service import import_csv
 
 
 def _print_summary(s) -> None:
+    """Import özetini terminale okunaklı bir tablo olarak yazdırır."""
     print("=" * 64)
     print(f"  Batch #{s.batch_id}  {s.filename}")
     print(f"  file_hash      : {s.file_hash[:16]}...")
@@ -24,6 +26,10 @@ def _print_summary(s) -> None:
 
 
 def main() -> int:
+    """CLI giriş noktası: verilen CSV yolunu okur, import eder, özet yazdırır.
+
+    Çıkış kodu: 0 başarılı, 1 import hatası, 2 dosya bulunamadı.
+    """
     parser = argparse.ArgumentParser(description="CSV seed (ingestion).")
     parser.add_argument("csv_path", type=Path)
     args = parser.parse_args()
@@ -34,7 +40,7 @@ def main() -> int:
     db = SessionLocal()
     try:
         summary = import_csv(db, data, args.csv_path.name)
-        db.commit()
+        db.commit()  # CLI kendi session'ını yönetir; import_csv commit yapmaz
     except Exception as exc:  # noqa: BLE001
         db.rollback()
         print(f"HATA: import başarısız → {exc}", file=sys.stderr)

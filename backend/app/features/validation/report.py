@@ -1,4 +1,11 @@
-"""Validation report — kategori/severity dağılımı + sistemik vs tekil tespiti."""
+"""Validation report — kategori/severity dağılımı + sistemik vs tekil tespiti.
+
+`engine.run_validation` sonuçlarını özetleyen ve Excel'e (3 sayfa) serileştiren
+yardımcılar. Sistemik/tekil ayrımı eşiği settings.validation_systemic_ratio'dan
+okunur: bir kuralın tetiklenme oranı bu eşiği aşıyorsa "sistemik" sayılır
+(tüm veri kümesinde etki), altındaysa "tekil" (birkaç kayda özgü).
+"""
+
 from __future__ import annotations
 
 from collections import Counter
@@ -12,6 +19,7 @@ from app.features.validation.models import (
 
 
 def category_breakdown(results: dict[int, ValidationResult]) -> dict[str, int]:
+    # Kategori bazında issue sayımı (UI grafik + Excel özet sayfasında gösterilir).
     c: Counter[str] = Counter()
     for r in results.values():
         for i in r.issues:
@@ -20,6 +28,7 @@ def category_breakdown(results: dict[int, ValidationResult]) -> dict[str, int]:
 
 
 def severity_breakdown(results: dict[int, ValidationResult]) -> dict[str, int]:
+    # error/warning/info dağılımı — severity dengesini UI'da özetler.
     s: Counter[str] = Counter()
     for r in results.values():
         for i in r.issues:
@@ -28,6 +37,7 @@ def severity_breakdown(results: dict[int, ValidationResult]) -> dict[str, int]:
 
 
 def rule_breakdown(results: dict[int, ValidationResult]) -> dict[str, int]:
+    # Hangi kural kaç kez tetiklendi? UI tablosunda "en sık kurallar" için kullanılır.
     r: Counter[str] = Counter()
     for res in results.values():
         for i in res.issues:
@@ -39,6 +49,8 @@ def systemic_vs_unique(
     results: dict[int, ValidationResult],
     threshold_ratio: float | None = None,
 ) -> dict[str, list[str]]:
+    # Bir kural, sonuçların yeterince büyük bir oranında tetiklendiyse "sistemik" kabul edilir
+    # (ör. her tarihte aynı eksik alan → süreç/şablon sorunu); aksi halde "tekil" kayıt olayı.
     if threshold_ratio is None:
         threshold_ratio = settings.validation_systemic_ratio
     total = max(len(results), 1)
@@ -100,14 +112,20 @@ def report_xlsx(results: dict[int, ValidationResult]) -> bytes:
     for k, v in sorted(severity_breakdown(results).items()):
         ws.append([f"severity: {k}", v])
     for k, v in sorted(rule_breakdown(results).items()):
-        ws.append([f"rule: {k}", v])
+        ws.append([f"rule: {k}", v])  # tüm kurallar + tetiklenme sayıları
 
     # 2) Issues (kayıt başına her issue bir satır)
     ws2 = wb.create_sheet("Issues")
     ws2.append(
         [
-            "record_id", "rule_id", "category", "severity",
-            "fields", "message", "suggested_action", "record_status",
+            "record_id",
+            "rule_id",
+            "category",
+            "severity",
+            "fields",
+            "message",
+            "suggested_action",
+            "record_status",
         ]
     )
     for cell in ws2[1]:

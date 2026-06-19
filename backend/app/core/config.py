@@ -3,6 +3,7 @@
 Secret'lar (TARGET_API_KEY) yalnız buradan erişilir; asla log'lanmaz, response'a konmaz.
 Yollar CWD'den bağımsız mutlak hesaplanır (repo kökü = config.py parents[3]).
 """
+
 from __future__ import annotations
 
 from pathlib import Path
@@ -16,6 +17,8 @@ DB_DIR = _REPO_ROOT / "db"
 
 
 class Settings(BaseSettings):
+    """Tüm uygulama ayarları — .env'den okunur, eksikse buradaki varsayılan kullanılır."""
+
     model_config = SettingsConfigDict(
         env_file=(str(_REPO_ROOT / ".env"), ".env"),
         env_file_encoding="utf-8",
@@ -42,6 +45,10 @@ class Settings(BaseSettings):
     target_api_max_retries: int = 3
     target_api_backoff_base_seconds: int = 2
     target_api_rate_limit_cooldown_seconds: int = 60
+    # Circuit breaker: ardışık N başarısız gönderimden sonra hedefe gönderimi
+    # `cooldown` süresince otomatik duraklat (uzun süreli hata durumunda).
+    sync_circuit_failure_threshold: int = 5
+    sync_circuit_cooldown_seconds: int = 300
 
     # --- Validation eşik & toleranslar ---
     validation_tolerance_pct: float = 1.0
@@ -57,10 +64,14 @@ class Settings(BaseSettings):
 
     @property
     def cors_origins_list(self) -> list[str]:
+        """Virgülle ayrılmış CORS origin string'ini temiz bir listeye çevirir."""
+        # Boş parçaları at; baş/son boşlukları kırp (ör. "a, b" → ["a", "b"]).
         return [o.strip() for o in self.cors_allow_origins.split(",") if o.strip()]
 
     @property
     def target_submit_url(self) -> str:
+        """Hedef MES API submit endpoint'inin tam URL'ini birleştirir."""
+        # Çift slash olmaması için base URL'in sonundaki '/' temizlenir.
         return f"{self.target_api_url.rstrip('/')}{self.target_api_submit_path}"
 
 

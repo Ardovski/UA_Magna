@@ -1,4 +1,5 @@
 """Ingestion service — CSV oku, normalize, import, duplicate kontrol."""
+
 from __future__ import annotations
 
 import io
@@ -31,6 +32,13 @@ _ACTIVE_BATCH_KEY: str = "active_batch_id"
 
 
 def _read_dataframe(file_bytes: bytes) -> tuple[pd.DataFrame, str]:
+    """CSV byte'larını DataFrame'e okur; kullanılan encoding'i de döner.
+
+    Encoding fallback: önce utf-8, sonra Türkçe Windows (cp1254), son çare latin-1.
+    Tüm hücreler string olarak okunur (dtype=str) ki normalize adımı kontrolü elinde tutsun;
+    keep_default_na=False ile "NA"/boş gibi değerlerin pandas tarafından NaN'a çevrilmesi
+    engellenir.
+    """
     encodings: tuple[str, ...] = ("utf-8", "cp1254", "latin-1")
     last_err: Exception | None = None
     for enc in encodings:
@@ -39,19 +47,22 @@ def _read_dataframe(file_bytes: bytes) -> tuple[pd.DataFrame, str]:
             return df, enc
         except UnicodeDecodeError as exc:
             last_err = exc
-            continue
+            continue  # bu encoding çözemedi → sıradakini dene
         except Exception as exc:
             last_err = exc
             continue
+    # Hiçbir encoding okuyamadıysa son hatayı sararak yükselt.
     raise ValueError(f"CSV okunamadı: {last_err}")
 
 
 def _df_to_dicts(df: pd.DataFrame) -> Iterable[dict[str, object]]:
+    """DataFrame satırlarını tek tek {kolon: değer} dict'i olarak üretir (lazy)."""
     for _, row in df.iterrows():
         yield {k: row.get(k) for k in df.columns}
 
 
 def _to_batch_out(batch: models.ImportBatch, *, is_active: bool) -> BatchOut:
+    """ORM ImportBatch'i API çıktısı BatchOut'a dönüştürür."""
     return BatchOut(
         id=batch.id,
         filename=batch.filename,
@@ -65,18 +76,19 @@ def _to_batch_out(batch: models.ImportBatch, *, is_active: bool) -> BatchOut:
 
 
 def preview_csv(file_bytes: bytes, filename: str) -> ImportPreview:
+    """CSV'yi DB'ye yazmadan önizler: kolon eşleme + ilk N satırı normalize edip döner."""
     df, enc = _read_dataframe(file_bytes)
-    df.columns = map_columns(list(df.columns))
+    df.columns = map_columns(list(df.columns))  # ham başlıkları iç kolon adlarına çevir
     rows_iter = _df_to_dicts(df)
     sample: list[dict[str, object]] = []
     for raw in rows_iter:
         if len(sample) >= _PREVIEW_LIMIT:
-            break
+            break  # önizleme için yalnızca ilk birkaç satır yeterli
         norm = normalize_row(raw)
         sample.append(norm)
-    rescale_percent_columns(sample)
+    rescale_percent_columns(sample)  # yüzde ölçeğini örnek kümesi üzerinden hizala
     for i, n in enumerate(sample):
-        n["row_hash"] = row_hash_from_mapping(n)
+        n["row_hash"] = row_hash_from_mapping(n)  # önizlemede de row_hash göster
         sample[i] = n
     return ImportPreview(
         filename=filename,
@@ -89,20 +101,30 @@ def preview_csv(file_bytes: bytes, filename: str) -> ImportPreview:
 
 
 def import_csv(db: Session, file_bytes: bytes, filename: str) -> ImportSummary:
+    """CSV'yi okur, normalize eder, duplicate'leri eler, DB'ye yazar ve validasyonu tetikler.
+
+    Not: commit edilmez (db.flush kullanılır); transaction'ı çağıran (API/CLI) yönetir.
+    """
     started = time.perf_counter()
     df, _enc = _read_dataframe(file_bytes)
     df.columns = map_columns(list(df.columns))
     total = len(df)
 
+    # --- Dosya bazlı dedupe: aynı file_hash daha önce yüklendiyse duplicate işaretle. ---
     fhash = file_hash_from_bytes(file_bytes)
-    duplicate_file: bool = db.execute(
-        select(models.ImportBatch).where(models.ImportBatch.file_hash == fhash)
-    ).first() is not None
+    duplicate_file: bool = (
+        db.execute(select(models.ImportBatch).where(models.ImportBatch.file_hash == fhash)).first()
+        is not None
+    )
 
+    # Satır bazlı dedupe için mevcut tüm row_hash'leri belleğe al (her satırda DB
+    # sorgusu yapmamak için).
     existing_hashes: set[str] = set(
         db.execute(select(models.ProductionRecord.row_hash)).scalars().all()
     )
 
+    # Tüm satırları normalize et; tek satırdaki hata tüm import'u düşürmesin diye
+    # başarısız satır _parse_error işaretiyle buffer'a alınır (raporlanır, atlanır).
     rows_buffer: list[dict[str, object]] = []
     for raw in _df_to_dicts(df):
         try:
@@ -110,6 +132,7 @@ def import_csv(db: Session, file_bytes: bytes, filename: str) -> ImportSummary:
             rows_buffer.append(norm)
         except Exception as exc:  # noqa: BLE001
             rows_buffer.append({"_parse_error": str(exc), "_raw": raw})
+    # Yüzde ölçeği kolon bazında belirlenir → yalnızca parse edilebilen satırlar üzerinden hesapla.
     rescale_percent_columns([r for r in rows_buffer if "_parse_error" not in r])
 
     batch = models.ImportBatch(
@@ -132,6 +155,7 @@ def import_csv(db: Session, file_bytes: bytes, filename: str) -> ImportSummary:
     created_records: list[models.ProductionRecord] = []
 
     for r in rows_buffer:
+        # Parse edilemeyen satırlar: say, ilk birkaçını örnek olarak sakla, kaydetme.
         if "_parse_error" in r:
             parse_failed += 1
             if len(failed_samples) < _FAILED_SAMPLE_MAX:
@@ -143,14 +167,17 @@ def import_csv(db: Session, file_bytes: bytes, filename: str) -> ImportSummary:
                     }
                 )
             continue
+        # Satır bazlı dedupe: aynı içerikli satır (DB'de veya bu dosyada) tekrar yazılmaz.
         rhash = row_hash_from_mapping(r)
         if rhash in existing_hashes:
             duplicate_row_skipped += 1
             continue
-        existing_hashes.add(rhash)
+        existing_hashes.add(rhash)  # aynı dosya içindeki tekrarları da yakalamak için ekle
         record = models.ProductionRecord(
             import_batch_id=batch.id,
-            record_id_src=r.get("record_id_src") if isinstance(r.get("record_id_src"), int) else None,
+            record_id_src=r.get("record_id_src")
+            if isinstance(r.get("record_id_src"), int)
+            else None,
             prod_date=r.get("prod_date"),
             work_order_no=r.get("work_order_no"),
             work_center_no=r.get("work_center_no"),
@@ -172,7 +199,9 @@ def import_csv(db: Session, file_bytes: bytes, filename: str) -> ImportSummary:
                 run_time=r.get("run_time"),
                 unplanned_down=r.get("unplanned_down"),
                 performance=r.get("performance"),
-                produced_qty=r.get("produced_qty") if isinstance(r.get("produced_qty"), int) else None,
+                produced_qty=r.get("produced_qty")
+                if isinstance(r.get("produced_qty"), int)
+                else None,
                 scrap_qty=r.get("scrap_qty") if isinstance(r.get("scrap_qty"), int) else None,
             ),
             row_hash=rhash,
@@ -184,6 +213,7 @@ def import_csv(db: Session, file_bytes: bytes, filename: str) -> ImportSummary:
 
     if parse_failed > 0:
         parse_failed_normalized["parse_failed"] = parse_failed
+    # Dosya zaten yüklenmişse status="duplicate"; satırlar yine de eklenmiş olabilir.
     batch.status = "duplicate" if duplicate_file else "completed"
     if duplicate_file:
         batch.error_message = "Bu dosya daha önce import edilmiş (file_hash)."
@@ -250,14 +280,18 @@ def _validate_imported(
 
 
 def list_batches(db: Session) -> list[BatchOut]:
+    """Tüm batch'leri en yeni yüklenenden eskiye sıralayıp aktiflik bilgisiyle döner."""
     active_id: int | None = get_active_batch_id(db)
-    rows = db.execute(
-        select(models.ImportBatch).order_by(models.ImportBatch.uploaded_at.desc())
-    ).scalars().all()
+    rows = (
+        db.execute(select(models.ImportBatch).order_by(models.ImportBatch.uploaded_at.desc()))
+        .scalars()
+        .all()
+    )
     return [_to_batch_out(b, is_active=(b.id == active_id)) for b in rows]
 
 
 def get_active_batch_id(db: Session) -> int | None:
+    """Aktif batch id'sini AppSetting'ten okur; yoksa/geçersizse None."""
     row: models.AppSetting | None = db.get(models.AppSetting, _ACTIVE_BATCH_KEY)
     if row is None or row.value == "":
         return None
@@ -268,6 +302,7 @@ def get_active_batch_id(db: Session) -> int | None:
 
 
 def set_active_batch(db: Session, batch_id: int) -> BatchOut:
+    """Aktif batch'i ayarlar (AppSetting upsert); batch yoksa ValueError yükseltir."""
     batch: models.ImportBatch | None = db.get(models.ImportBatch, batch_id)
     if batch is None:
         raise ValueError(f"Batch bulunamadı: {batch_id}")
@@ -282,17 +317,14 @@ def set_active_batch(db: Session, batch_id: int) -> BatchOut:
 
 
 def delete_batch(db: Session, batch_id: int) -> None:
+    """Batch'i ve bağlı üretim kayıtlarını siler; aktif batch ise aktiflik kaydını da temizler."""
     existing: models.ImportBatch | None = db.get(models.ImportBatch, batch_id)
     if existing is None:
         raise ValueError(f"Batch bulunamadı: {batch_id}")
     db.execute(
-        delete(models.ProductionRecord).where(
-            models.ProductionRecord.import_batch_id == batch_id
-        )
+        delete(models.ProductionRecord).where(models.ProductionRecord.import_batch_id == batch_id)
     )
-    db.execute(
-        delete(models.ImportBatch).where(models.ImportBatch.id == batch_id)
-    )
+    db.execute(delete(models.ImportBatch).where(models.ImportBatch.id == batch_id))
     if get_active_batch_id(db) == batch_id:
         setting: models.AppSetting | None = db.get(models.AppSetting, _ACTIVE_BATCH_KEY)
         if setting is not None:

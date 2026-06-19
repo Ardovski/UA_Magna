@@ -4,6 +4,7 @@ Faz 0: app + logging + CORS + hata yönetimi + DB lifecycle + v1 router.
 Feature router'ları `app/api/v1/router.py` üzerinden mount edilir.
 Çalıştır: `make dev-api`  → http://localhost:8000/docs
 """
+
 from __future__ import annotations
 
 from collections.abc import AsyncIterator
@@ -37,6 +38,7 @@ app = FastAPI(
     lifespan=lifespan,
 )
 
+# CORS: yalnız .env'de izin verilen origin'ler (varsayılan: Next.js :3000).
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
@@ -45,7 +47,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Domain hatalarını tutarlı JSON formatına çeviren handler'ları bağla.
 register_error_handlers(app)
+# Tüm feature endpoint'leri /api/v1 önekiyle yayınlanır.
 app.include_router(api_router, prefix="/api/v1")
 
 
@@ -57,4 +61,5 @@ def health() -> dict[str, str]:
 
 @app.get("/", tags=["meta"])
 def root() -> dict[str, str]:
+    """Kök endpoint — API kimliği ve Swagger doküman bağlantısını döndürür."""
     return {"name": "uretim-takip-api", "docs": "/docs", "version": "0.1.0"}

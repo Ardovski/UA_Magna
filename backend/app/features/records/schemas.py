@@ -1,4 +1,5 @@
 """Records Pydantic şemaları."""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -7,16 +8,23 @@ from pydantic import BaseModel, Field
 
 
 class DateRange(BaseModel):
+    """Üretim tarihi filtresi için kapsayıcı [start, end] aralığı; her iki uç da opsiyonel."""
+
     start: dt.date | None = None
     end: dt.date | None = None
 
 
 class OeeRange(BaseModel):
+    """OEE filtresi için [min, max] aralığı; her iki uç da opsiyonel."""
+
     min: float | None = None
     max: float | None = None
 
 
 class RecordFilter(BaseModel):
+    """Liste/export/analytics'in paylaştığı zengin filtre seti
+    (tarih, vardiya, istasyon, stok, OEE, statü, sorun)."""
+
     prod_date_range: DateRange | None = None
     shift: list[int] = Field(default_factory=list)
     station_name: list[str] = Field(default_factory=list)
@@ -27,6 +35,9 @@ class RecordFilter(BaseModel):
 
 
 class RecordOut(BaseModel):
+    """Tek üretim kaydının API çıktısı (issue_count dahil; ham + yeniden hesaplanan
+    OEE alanlarıyla)."""
+
     id: int
     record_id_src: int | None = None
     import_batch_id: int | None = None
@@ -55,6 +66,9 @@ class RecordOut(BaseModel):
 
 
 class IssueOut(BaseModel):
+    """Bir kayda bağlı tek bir validasyon sorununun API çıktısı
+    (kural, kategori, şiddet, mesaj, durum)."""
+
     id: int
     rule_id: str
     category: str
@@ -68,10 +82,15 @@ class IssueOut(BaseModel):
 
 
 class RecordDetailOut(RecordOut):
+    """Kayıt detayı: `RecordOut` + ilişkili validasyon sorunlarının tam listesi."""
+
     issues: list[IssueOut] = Field(default_factory=list)
 
 
 class PaginatedRecords(BaseModel):
+    """Sayfalı liste cevabı: kayıtlar + sayfalama meta verisi
+    (sayfa, boyut, toplam, toplam sayfa)."""
+
     items: list[RecordOut]
     page: int
     size: int

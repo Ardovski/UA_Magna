@@ -1,4 +1,11 @@
-"""Validation API router."""
+"""Validation API router — motoru çağırıp sonuçları HTTP uçlarına bağlar.
+
+Uçlar: /run (seçili veya tüm kayıtları doğrula), /summary, /issues (canlı düzleştirilmiş
++ filtreli liste), /report ve /report.xlsx (indirilebilir rapor). Ayrıca operatör
+aksiyonları: kaydı düzelt/reddet/onayla ve düzenleme (RecordEdit) geçmişi. Router
+incedir; gerçek değerlendirme engine'de yapılır.
+"""
+
 from __future__ import annotations
 
 import json
@@ -20,6 +27,8 @@ from app.features.validation.report import full_report, report_xlsx
 router = APIRouter()
 
 
+# Validasyonu tetikler; record_ids verilirse alt küme, yoksa tüm kayıtlar denetlenir.
+# Türetilen statüler kayıtlara yazıldığı için sonucu commit ederiz.
 @router.post("/run")
 def run(
     record_ids: list[int] | None = None,
@@ -30,6 +39,7 @@ def run(
     return {"summary": summarize(results), "record_count": len(results)}
 
 
+# Tüm kayıtlar için özet sayımları döner (statü/kategori/severity/kural dağılımı).
 @router.get("/summary")
 def summary(db: Session = Depends(get_db)) -> dict[str, object]:
     results = run_validation(db)
@@ -37,6 +47,7 @@ def summary(db: Session = Depends(get_db)) -> dict[str, object]:
     return summarize(results)
 
 
+# Issue listesini canlı üretip kategori/severity/rule_id/record_status'a göre filtreler.
 @router.get("/issues")
 def issues(
     category: IssueCategory | None = None,
@@ -51,6 +62,8 @@ def issues(
     # aksi halde liste her zaman boş gelir.
     results = run_validation(db)
     db.commit()
+    # Issue'lar kalıcı olmadığından gerçek bir PK yok; UI listesi için sıralı yapay
+    # bir `id` üretiriz (detected_at/fixed_at de bu yüzden None döner).
     out: list[dict[str, object]] = []
     next_id = 1
     for record_id, result in results.items():
@@ -83,6 +96,7 @@ def issues(
     return out
 
 
+# Tam JSON rapor: özet + sistemik/tekil kural ayrımı + kayıt başına issue detayı.
 @router.get("/report")
 def report(db: Session = Depends(get_db)) -> dict[str, object]:
     results = run_validation(db)
@@ -108,6 +122,7 @@ def report_xlsx_endpoint(db: Session = Depends(get_db)) -> Response:
     )
 
 
+# Kaydı id ile getirir; yoksa 404 fırlatır (operatör aksiyonlarında ortak yardımcı).
 def _record_or_404(db: Session, record_id: int) -> models.ProductionRecord:
     rec = db.get(models.ProductionRecord, record_id)
     if rec is None:
@@ -119,6 +134,8 @@ def _to_dict(rec: models.ProductionRecord) -> dict[str, object]:
     return {c.name: getattr(rec, c.name) for c in rec.__table__.columns}
 
 
+# Operatör düzeltmesi: verilen patch'i kayda uygula, statüyü "valid"e çek ve
+# eski→yeni snapshot'ı RecordEdit denetim kaydı olarak sakla.
 @router.post("/records/{record_id}/fix")
 def fix_record(
     record_id: int,
@@ -145,6 +162,7 @@ def fix_record(
     return {"record_id": rec.id, "status": rec.status}
 
 
+# Operatör reddi: kaydı "rejected" yapar (hedef API'ye gitmez) + denetim kaydı tutar.
 @router.post("/records/{record_id}/reject")
 def reject_record(
     record_id: int,
@@ -169,6 +187,8 @@ def reject_record(
     return {"record_id": rec.id, "status": rec.status}
 
 
+# Operatör onayı: şüpheli (suspect) bir kaydı manuel olarak "valid" kabul eder +
+# denetim kaydı tutar (yanlış pozitifleri geçirme yolu).
 @router.post("/records/{record_id}/accept")
 def accept_record(
     record_id: int,
@@ -193,17 +213,22 @@ def accept_record(
     return {"record_id": rec.id, "status": rec.status}
 
 
+# Bir kaydın düzenleme/aksiyon geçmişini (RecordEdit) en yeniden eskiye döner.
 @router.get("/records/{record_id}/edits")
 def list_edits(
     record_id: int,
     db: Session = Depends(get_db),
 ) -> list[dict[str, object]]:
     rec = _record_or_404(db, record_id)
-    rows = db.execute(
-        select(models.RecordEdit)
-        .where(models.RecordEdit.record_id == rec.id)
-        .order_by(models.RecordEdit.edited_at.desc())
-    ).scalars().all()
+    rows = (
+        db.execute(
+            select(models.RecordEdit)
+            .where(models.RecordEdit.record_id == rec.id)
+            .order_by(models.RecordEdit.edited_at.desc())
+        )
+        .scalars()
+        .all()
+    )
     return [
         {
             "id": r.id,

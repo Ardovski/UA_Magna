@@ -1,4 +1,10 @@
-"""Sync API router."""
+"""Sync API router — preview / submit / history / retry uç noktaları.
+
+Önemli: /submit ve /retry-all 202 (Accepted) döner; gönderim senkron yapılmaz, FastAPI
+BackgroundTasks ile arka planda (`_run_in_background`) yürütülür. Böylece istek hızlıca yanıtlanır
+ve retry/backoff gibi uzun süren işler HTTP isteğini bloklamaz.
+"""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -24,6 +30,7 @@ router = APIRouter()
 
 @router.get("/preview")
 def preview_endpoint(db: Session = Depends(get_db)) -> dict[str, object]:
+    """Gönderilecek (gün, vardiya) gruplarını gönderim yapmadan önizler."""
     return preview(db).model_dump()
 
 
@@ -33,6 +40,12 @@ def submit_endpoint(
     background: BackgroundTasks,
     db: Session = Depends(get_db),
 ) -> SubmitResponse:
+    """Seçilen grup(lar) için pending submission oluşturur; 202 döner, gönderim arka planda yapılır.
+
+    İstek: tek (production_date, shift), `targets` listesi ya da hiçbiri (tüm gruplar).
+    Vardiya 1/2/3 dışındaysa 422 atılır. Yanıt accepted/skipped/rejected idempotency_key'lerini
+    içerir.
+    """
     if (
         payload.production_date is not None
         and payload.shift is not None
@@ -53,6 +66,8 @@ def submit_endpoint(
         force=payload.force,
     )
     if response.submission_ids:
+        # Gerçek HTTP gönderimi arka plana atılır → endpoint 202 ile hemen döner,
+        # retry/backoff isteği bloklamaz.
         background.add_task(_run_in_background, response.submission_ids)
     return response
 
@@ -63,6 +78,7 @@ def history_endpoint(
     limit: int = Query(100, ge=1, le=500),
     db: Session = Depends(get_db),
 ) -> list[dict[str, object]]:
+    """Gönderim geçmişini (en yeni önce) döner; opsiyonel status filtresi ve limit."""
     items = history(db, limit=limit, status=status)
     return [i.model_dump() for i in items]
 
@@ -84,6 +100,7 @@ def retry_endpoint(
     submission_id: int,
     db: Session = Depends(get_db),
 ) -> dict[str, object]:
+    """Tek bir submission'ı senkron yeniden dener; bulunamazsa 404 verir."""
     out = retry_submission(db, submission_id)
     if out is None:
         raise NotFoundError(f"SyncSubmission {submission_id} bulunamadı.")
@@ -91,6 +108,8 @@ def retry_endpoint(
 
 
 def _run_in_background(submission_ids: list[int]) -> None:
+    # Arka plan görevi: request scope'undaki DB session'ı kullanılamaz (kapanmış olabilir),
+    # bu yüzden yeni bir SessionLocal açılır ve finally'de mutlaka kapatılır.
     from app.db.session import SessionLocal
 
     db = SessionLocal()

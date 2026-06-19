@@ -1,4 +1,5 @@
-"""Records API router."""
+"""Records API router — sunucu-taraflı sayfalı liste, CSV export ve kayıt detay endpoint'leri."""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -34,12 +35,17 @@ def _build_filter(
     validation_status: Annotated[list[str] | None, Query()] = None,
     has_issues: Annotated[bool | None, Query()] = None,
 ) -> RecordFilter:
+    """Query string filtre parametrelerini ortak `RecordFilter` şemasına derler
+    (liste ve export ortak kullanır)."""
     return RecordFilter(
+        # Tarih/OEE alt-aralıkları yalnız ilgili parametreler verildiğinde kurulur.
         prod_date_range=DateRange(start=start, end=end) if (start or end) else None,
         shift=shift or [],
         station_name=station_name or [],
         stock_name=stock_name,
-        oee_range=OeeRange(min=oee_min, max=oee_max) if (oee_min is not None or oee_max is not None) else None,
+        oee_range=OeeRange(min=oee_min, max=oee_max)
+        if (oee_min is not None or oee_max is not None)
+        else None,
         validation_status=validation_status or [],
         has_issues=has_issues,
     )
@@ -61,12 +67,20 @@ def list_(
     sort: str | None = None,
     db: Session = Depends(get_db),
 ) -> PaginatedRecords:
+    """Filtre + sıralama + sayfalama ile kayıt listesi; toplam ve sayfa sayısıyla birlikte döner."""
     flt = _build_filter(
-        start=start, end=end, shift=shift, station_name=station_name,
-        stock_name=stock_name, oee_min=oee_min, oee_max=oee_max,
-        validation_status=validation_status, has_issues=has_issues,
+        start=start,
+        end=end,
+        shift=shift,
+        station_name=station_name,
+        stock_name=stock_name,
+        oee_min=oee_min,
+        oee_max=oee_max,
+        validation_status=validation_status,
+        has_issues=has_issues,
     )
     items, total = list_records(db, flt, page=page, size=size, sort=sort)
+    # Toplam sayfa = tavan(total / size); size 0 ise (teorik) 0.
     total_pages = (total + size - 1) // size if size else 0
     return PaginatedRecords(items=items, page=page, size=size, total=total, total_pages=total_pages)
 
@@ -85,14 +99,25 @@ def export(
     sort: str | None = None,
     db: Session = Depends(get_db),
 ) -> StreamingResponse:
+    """Aynı filtre/sıralamayı uygulayan kayıtları CSV olarak akıtarak indirir
+    (sayfalama yok; tüm sonuç kümesi)."""
     flt = _build_filter(
-        start=start, end=end, shift=shift, station_name=station_name,
-        stock_name=stock_name, oee_min=oee_min, oee_max=oee_max,
-        validation_status=validation_status, has_issues=has_issues,
+        start=start,
+        end=end,
+        shift=shift,
+        station_name=station_name,
+        stock_name=stock_name,
+        oee_min=oee_min,
+        oee_max=oee_max,
+        validation_status=validation_status,
+        has_issues=has_issues,
     )
 
     def iter_csv() -> AsyncIterator[bytes]:
+        # UTF-8 BOM: Excel'in Türkçe karakterleri doğru kodlama ile açması için ilk yazılan bayttır.
         yield b"\xef\xbb\xbf"
+        # Kayıtlar yield_per ile akıtılır; satır satır CSV'ye çevrilip byte'a kodlanır
+        # (tüm seti belleğe almadan).
         for chunk in rows_to_csv_lines(stream_records(db, flt, sort=sort)):
             yield chunk.encode("utf-8")
 
@@ -100,6 +125,8 @@ def export(
         iter_csv(),
         media_type="text/csv; charset=utf-8",
         headers={
+            # Tarayıcıya dosya indirmesi (attachment) ve zaman damgalı dosya adı verir;
+            # cevap önbelleğe alınmaz.
             "Content-Disposition": f'attachment; filename="{csv_filename()}"',
             "Cache-Control": "no-store",
         },
@@ -111,6 +138,7 @@ def distinct(
     column: str,
     db: Session = Depends(get_db),
 ) -> list[str]:
+    """Verilen kolon için ayrık (distinct) değer listesi; filtre açılır menülerini besler."""
     return distinct_values(db, column)
 
 
@@ -119,6 +147,7 @@ def detail(
     record_id: int,
     db: Session = Depends(get_db),
 ) -> dict[str, object]:
+    """Tek kaydın detayını (ilişkili validasyon sorunları dahil) döner; yoksa 404."""
     rec = get_record(db, record_id)
     if rec is None:
         raise NotFoundError(f"Record {record_id} bulunamadı.")

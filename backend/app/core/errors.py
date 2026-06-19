@@ -2,6 +2,7 @@
 
 Yanıt formatı: { "error": { "code", "message", "detail" } }
 """
+
 from __future__ import annotations
 
 from typing import Any
@@ -45,6 +46,7 @@ class TargetApiError(AppError):
 
 
 async def _app_error_handler(_: Request, exc: AppError) -> JSONResponse:
+    """AppError'ı sözleşmedeki tutarlı JSON hata gövdesine çevirir."""
     return JSONResponse(
         status_code=exc.status_code,
         content={"error": {"code": exc.code, "message": exc.message, "detail": exc.detail}},
@@ -52,4 +54,5 @@ async def _app_error_handler(_: Request, exc: AppError) -> JSONResponse:
 
 
 def register_error_handlers(app: FastAPI) -> None:
+    """Tüm AppError alt sınıfları için ortak handler'ı FastAPI'ye kaydeder."""
     app.add_exception_handler(AppError, _app_error_handler)

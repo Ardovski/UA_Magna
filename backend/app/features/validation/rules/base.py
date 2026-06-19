@@ -1,4 +1,11 @@
-"""Rule taban sınıfı — tüm kurallar bundan türer."""
+"""Rule taban sınıfı — tüm kurallar bundan türer.
+
+Her kural, sınıf düzeyinde sabit bir kimlik taşır: `id` (V-M01 gibi), `category`,
+`severity`, önerilen `action` ve ilgili `fields`. `check()` tek kaydı denetler ve
+ihlal varsa `Issue` döner, yoksa None. Severity'den kayıt statüsü türetilir
+(ERROR→rejected, WARNING→suspect, aksi halde valid).
+"""
+
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
@@ -23,9 +30,12 @@ class Rule(ABC):
 
     @abstractmethod
     def check(self, record: Any, ctx: RuleContext) -> Issue | None:
+        # Tek kaydı denetler; ihlal varsa Issue döner, temizse None.
         ...
 
     def make_issue(self, message: str) -> Issue:
+        # Sınıf düzeyindeki sabit metadata'yı (id/category/severity/fields/action)
+        # verilen mesajla birleştirip Issue üretir — kural koduna tekrar yazmamak için.
         return Issue(
             rule_id=self.id,
             category=self.category,
@@ -37,6 +47,8 @@ class Rule(ABC):
 
 
 class CompositeRule(Rule):
+    # Birden çok kuralı tek kural gibi sarmalar; check() hepsini sırayla çalıştırıp
+    # toplanan Issue listesini döner (hiç ihlal yoksa None).
     def __init__(self, rules: Sequence[Rule]) -> None:
         self._rules: list[Rule] = list(rules)
 

@@ -1,4 +1,5 @@
 """Analytics API router — KPI + 4 grafik + 3 dashboard tablo endpoint'i."""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -35,12 +36,23 @@ def _parse_filters(
     validation_status: list[str] | None,
     has_issues: bool | None,
 ) -> RecordFilter:
+    """Query string parametrelerini tek bir `RecordFilter` nesnesine derler.
+
+    Tüm analytics endpoint'leri aynı zengin filtre setini paylaşır; bu yardımcı
+    dağınık query parametrelerini records modülündeki ortak filtre şemasına
+    dönüştürür. Boş/None değerler ilgili alt-şemaları (tarih/OEE aralığı) hiç
+    kurmadan atlar, böylece filtre uygulanmamış sayılır.
+    """
     return RecordFilter(
+        # Tarih aralığı yalnız start veya end verilmişse kurulur; aksi halde None.
         prod_date_range=DateRange(start=start, end=end) if (start or end) else None,
         shift=shift or [],
         station_name=station_name or [],
         stock_name=stock_name,
-        oee_range=OeeRange(min=oee_min, max=oee_max) if (oee_min is not None or oee_max is not None) else None,
+        # OEE aralığı yalnız min veya max verilmişse kurulur.
+        oee_range=OeeRange(min=oee_min, max=oee_max)
+        if (oee_min is not None or oee_max is not None)
+        else None,
         validation_status=validation_status or [],
         has_issues=has_issues,
     )
@@ -59,7 +71,10 @@ def kpis_endpoint(
     has_issues: Annotated[bool | None, Query()] = None,
     db: Session = Depends(get_db),
 ) -> dict[str, object]:
-    flt = _parse_filters(start, end, shift, station_name, stock_name, oee_min, oee_max, validation_status, has_issues)
+    """Dashboard üst KPI kartları: ortalama OEE, toplam üretim/fire/duruş ve statü sayıları."""
+    flt = _parse_filters(
+        start, end, shift, station_name, stock_name, oee_min, oee_max, validation_status, has_issues
+    )
     return kpis(db, flt)
 
 
@@ -77,7 +92,10 @@ def oee_trend_endpoint(
     days: int = Query(21, ge=1, le=90),
     db: Session = Depends(get_db),
 ) -> list[dict[str, object]]:
-    flt = _parse_filters(start, end, shift, station_name, stock_name, oee_min, oee_max, validation_status, has_issues)
+    """Günlük OEE trend serisi: son `days` gün için tarih bazında ortalama OEE."""
+    flt = _parse_filters(
+        start, end, shift, station_name, stock_name, oee_min, oee_max, validation_status, has_issues
+    )
     return oee_trend(db, flt, days=days)
 
 
@@ -94,7 +112,10 @@ def shift_comparison_endpoint(
     has_issues: Annotated[bool | None, Query()] = None,
     db: Session = Depends(get_db),
 ) -> list[dict[str, object]]:
-    flt = _parse_filters(start, end, shift, station_name, stock_name, oee_min, oee_max, validation_status, has_issues)
+    """Vardiya karşılaştırması: her vardiya için ortalama OEE, üretim ve fire."""
+    flt = _parse_filters(
+        start, end, shift, station_name, stock_name, oee_min, oee_max, validation_status, has_issues
+    )
     return shift_comparison(db, flt)
 
 
@@ -112,7 +133,10 @@ def station_ranking_endpoint(
     limit: int = Query(10, ge=1, le=100),
     db: Session = Depends(get_db),
 ) -> list[dict[str, object]]:
-    flt = _parse_filters(start, end, shift, station_name, stock_name, oee_min, oee_max, validation_status, has_issues)
+    """İstasyon sıralaması: ortalama OEE'ye göre en iyi `limit` istasyon."""
+    flt = _parse_filters(
+        start, end, shift, station_name, stock_name, oee_min, oee_max, validation_status, has_issues
+    )
     return station_ranking(db, flt, limit=limit)
 
 
@@ -129,7 +153,10 @@ def quality_distribution_endpoint(
     has_issues: Annotated[bool | None, Query()] = None,
     db: Session = Depends(get_db),
 ) -> list[dict[str, object]]:
-    flt = _parse_filters(start, end, shift, station_name, stock_name, oee_min, oee_max, validation_status, has_issues)
+    """Kalite dağılımı: kayıtları 10'arlık kalite (Q) aralıklarına (bucket) ayırır."""
+    flt = _parse_filters(
+        start, end, shift, station_name, stock_name, oee_min, oee_max, validation_status, has_issues
+    )
     return quality_distribution(db, flt)
 
 
@@ -139,6 +166,7 @@ def recent_records_endpoint(
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ) -> list[dict[str, object]]:
+    """Dashboard "son kayıtlar" tablosu; isteğe bağlı olarak tek bir import batch'ine daraltılır."""
     return recent_records(db, batch_id=batch_id, limit=limit)
 
 
@@ -148,6 +176,7 @@ def top_stations_endpoint(
     limit: int = Query(10, ge=1, le=100),
     db: Session = Depends(get_db),
 ) -> list[dict[str, object]]:
+    """Dashboard "en iyi istasyonlar" tablosu (batch bazlı, OEE'ye göre sıralı)."""
     return top_stations(db, batch_id=batch_id, limit=limit)
 
 
@@ -157,11 +186,14 @@ def problem_shifts_endpoint(
     limit: int = Query(20, ge=1, le=100),
     db: Session = Depends(get_db),
 ) -> list[dict[str, object]]:
+    """Dashboard "sorunlu vardiyalar" tablosu: düşük OEE veya red edilmiş kayıt
+    içeren (tarih, vardiya, istasyon) grupları."""
     return problem_shifts(db, batch_id=batch_id, limit=limit)
 
 
 @router.get("/filter-options")
 def filter_options(db: Session = Depends(get_db)) -> dict[str, list[str]]:
+    """Filtre açılır menüleri için ayrık (distinct) değer listelerini döner."""
     return {
         "stations": distinct_values(db, "station_name"),
         "stock_names": distinct_values(db, "stock_name"),

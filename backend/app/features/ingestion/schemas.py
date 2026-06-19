@@ -1,4 +1,5 @@
 """Pydantic şemalar — ingestion katmanı."""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -7,6 +8,8 @@ from pydantic import BaseModel, Field
 
 
 class NormalizedRow(BaseModel):
+    """Normalize edilmiş tek üretim satırı (row_hash dahil; parse uyarıları opsiyonel)."""
+
     record_id_src: int | None = None
     prod_date: dt.date | None = None
     work_order_no: str | None = None
@@ -30,6 +33,8 @@ class NormalizedRow(BaseModel):
 
 
 class ImportPreview(BaseModel):
+    """Import öncesi önizleme: tespit edilen kolonlar, encoding ve örnek satırlar."""
+
     filename: str
     file_hash: str
     total_rows: int
@@ -51,6 +56,8 @@ class ImportValidation(BaseModel):
 
 
 class ImportSummary(BaseModel):
+    """Import sonucu özeti: import edilen/atlanan/başarısız satır sayıları ve validasyon."""
+
     batch_id: int
     filename: str
     file_hash: str
@@ -66,6 +73,8 @@ class ImportSummary(BaseModel):
 
 
 class BatchOut(BaseModel):
+    """Import batch'inin dış (API) gösterimi; `is_active` aktif batch'i işaretler."""
+
     id: int
     filename: str
     file_hash: str

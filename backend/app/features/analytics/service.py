@@ -1,4 +1,5 @@
 """Analytics service — OEE recompute + filtre-aware agregasyonlar."""
+
 from __future__ import annotations
 
 import datetime as dt
@@ -15,6 +16,8 @@ from app.features.records.service import _apply_filter, _build_issue_subquery
 # OEE = bileşenlerden yeniden hesaplanmış `oee_recomputed` (bkz. app.core.oee),
 # basit ortalama, TÜM kayıtlar üzerinden (hacim metrikleriyle aynı kapsam).
 # Hesaplanamayan/boş kayıtlar SQL AVG tarafından dışlanır.
+# Kalite (Q) histogramı için sabit aralık tanımları: (alt sınır, üst sınır, etiket).
+# Son aralık 100 değerini de içersin diye üst sınır 100.01'e çekilmiştir.
 _QUALITY_BUCKETS: tuple[tuple[float, float, str], ...] = (
     (0.0, 10.0, "0-10"),
     (10.0, 20.0, "10-20"),
@@ -30,6 +33,7 @@ _QUALITY_BUCKETS: tuple[tuple[float, float, str], ...] = (
 
 
 def _safe_avg(values: Sequence[float | None]) -> float | None:
+    """None değerleri eleyerek basit aritmetik ortalama; hiç geçerli değer yoksa None döner."""
     cleaned: list[float] = [float(v) for v in values if v is not None]
     if not cleaned:
         return None
@@ -48,6 +52,7 @@ def _avg_oee_and_counts(
     dışlar. Sayımlar tüm kayıtlardan gelir (hacim metrikleriyle aynı kapsam).
     """
     issue_subq = _build_issue_subquery()
+    # Tek sorguda ortalama OEE + statü kırılımı: her statü için CASE/SUM ile sayım.
     stmt = select(
         func.avg(models.ProductionRecord.oee_recomputed).label("avg_oee"),
         func.count(models.ProductionRecord.id).label("cnt"),
@@ -55,6 +60,7 @@ def _avg_oee_and_counts(
         func.sum(case((models.ProductionRecord.status == "suspect", 1), else_=0)).label("s_cnt"),
         func.sum(case((models.ProductionRecord.status == "rejected", 1), else_=0)).label("r_cnt"),
     )
+    # Ortak filtre (issue alt-sorgusu dahil) tüm KPI agregasyonlarına uygulanır.
     stmt = _apply_filter(stmt, flt, issue_subq=issue_subq)
     row = db.execute(stmt).one()
     avg: float | None = float(row.avg_oee) if row.avg_oee is not None else None
@@ -65,7 +71,9 @@ def _sum_production_scrap_down(
     db: Session,
     flt: RecordFilter,
 ) -> tuple[int, int, float]:
+    """Filtreli kayıtlar için toplam üretim, fire ve duruş süresini (dakika) döner."""
     issue_subq = _build_issue_subquery()
+    # coalesce: hiç satır yoksa SUM NULL yerine 0/0.0 döner.
     stmt = select(
         func.coalesce(func.sum(models.ProductionRecord.produced_qty), 0).label("p"),
         func.coalesce(func.sum(models.ProductionRecord.scrap_qty), 0).label("s"),
@@ -77,9 +85,11 @@ def _sum_production_scrap_down(
 
 
 def kpis(db: Session, flt: RecordFilter) -> dict[str, Any]:
+    """Dashboard üst KPI kartlarını üretir: OEE ortalaması + hacim toplamları + statü sayıları."""
     avg_oee, cnt, v_cnt, s_cnt, r_cnt = _avg_oee_and_counts(db, flt)
     p, s, d = _sum_production_scrap_down(db, flt)
     from app.features.analytics.schemas import KpiCards
+
     return KpiCards(
         avg_oee=avg_oee,
         total_production=p,
@@ -97,6 +107,8 @@ def oee_trend(
     flt: RecordFilter,
     days: int = 21,
 ) -> list[dict[str, Any]]:
+    """Günlük OEE trend serisi: bitiş tarihinden geriye `days` günlük pencerede,
+    tarih bazında gruplanmış ortalama OEE."""
     end_date: dt.date | None = None
     if flt.prod_date_range and flt.prod_date_range.end:
         end_date = flt.prod_date_range.end
@@ -109,6 +121,8 @@ def oee_trend(
             issue_subq=_build_issue_subquery(),
         )
         end_date = db.execute(max_stmt).scalar() or dt.date.today()
+    # Pencere: bitiş dahil `days` gün geriye. Mevcut filtreyi koru, yalnız tarih
+    # aralığını bu pencereyle değiştir (kullanıcının diğer kriterleri korunur).
     start = end_date - dt.timedelta(days=days - 1)
     range_flt = RecordFilter(
         prod_date_range=DateRange(start=start, end=end_date),
@@ -133,6 +147,7 @@ def oee_trend(
     stmt = _apply_filter(stmt, range_flt, issue_subq=issue_subq)
     rows = db.execute(stmt).all()
     from app.features.analytics.schemas import OeeTrendPoint
+
     out: list[OeeTrendPoint] = []
     for r in rows:
         out.append(
@@ -150,7 +165,9 @@ def shift_comparison(
     db: Session,
     flt: RecordFilter,
 ) -> list[dict[str, Any]]:
+    """Vardiya bazında agregasyon: her vardiya için ortalama OEE, üretim, fire ve kayıt sayısı."""
     issue_subq = _build_issue_subquery()
+    # shift NULL kayıtlar hariç tutulur; sonuç vardiyaya göre gruplanıp sıralanır.
     stmt = (
         select(
             models.ProductionRecord.shift.label("s"),
@@ -166,6 +183,7 @@ def shift_comparison(
     stmt = _apply_filter(stmt, flt, issue_subq=issue_subq)
     rows = db.execute(stmt).all()
     from app.features.analytics.schemas import ShiftComparisonRow
+
     out: list[ShiftComparisonRow] = []
     for r in rows:
         out.append(
@@ -185,7 +203,9 @@ def station_ranking(
     flt: RecordFilter,
     limit: int = 10,
 ) -> list[dict[str, Any]]:
+    """İstasyon bazında agregasyon; ortalama OEE'ye göre azalan sırada ilk `limit` istasyon."""
     issue_subq = _build_issue_subquery()
+    # İstasyona göre grupla, ortalama OEE'ye göre azalan sırala, başı (top-N) al.
     stmt = (
         select(
             models.ProductionRecord.station_name.label("st"),
@@ -201,6 +221,7 @@ def station_ranking(
     stmt = _apply_filter(stmt, flt, issue_subq=issue_subq)
     rows = db.execute(stmt).all()
     from app.features.analytics.schemas import StationRankingRow
+
     out: list[StationRankingRow] = []
     for r in rows:
         out.append(
@@ -218,7 +239,10 @@ def quality_distribution(
     db: Session,
     flt: RecordFilter,
 ) -> list[dict[str, Any]]:
+    """Kalite (Q) histogramı: kayıtları sabit 10'arlık aralıklara dağıtır, aralık başına
+    kayıt ve fire sayar."""
     issue_subq = _build_issue_subquery()
+    # Ham Q ve fire değerlerini çek; bucket'lama SQL yerine Python'da yapılır.
     stmt = select(
         models.ProductionRecord.quality.label("q"),
         func.coalesce(models.ProductionRecord.scrap_qty, 0).label("sc"),
@@ -226,9 +250,14 @@ def quality_distribution(
     stmt = _apply_filter(stmt, flt, issue_subq=issue_subq)
     rows = db.execute(stmt).all()
     from app.features.analytics.schemas import QualityDistributionBucket
-    counts: dict[tuple[float, float, str], tuple[int, int]] = dict.fromkeys(_QUALITY_BUCKETS, (0, 0))
+
+    # Tüm aralıkları (0,0) ile başlat ki boş bucket'lar da çıktıda görünsün.
+    counts: dict[tuple[float, float, str], tuple[int, int]] = dict.fromkeys(
+        _QUALITY_BUCKETS, (0, 0)
+    )
     for r in rows:
         qv = float(r.q)
+        # Q değerini ilk eşleşen [low, high) aralığına yerleştir, kayıt+fire biriktir.
         for low, high, label in _QUALITY_BUCKETS:
             if low <= qv < high:
                 key = (low, high, label)
@@ -254,6 +283,8 @@ def recent_records(
     batch_id: int | None = None,
     limit: int = 20,
 ) -> list[dict[str, Any]]:
+    """En son oluşturulan kayıtların özetini döner; isteğe bağlı olarak tek bir import
+    batch'ine daraltır."""
     stmt = select(
         models.ProductionRecord.id,
         models.ProductionRecord.prod_date,
@@ -268,12 +299,14 @@ def recent_records(
     )
     if batch_id is not None:
         stmt = stmt.where(models.ProductionRecord.import_batch_id == batch_id)
+    # En yeni kayıt önce; created_at eşitse id ile deterministik sıra.
     stmt = stmt.order_by(
         models.ProductionRecord.created_at.desc(),
         models.ProductionRecord.id.desc(),
     ).limit(limit)
     rows = db.execute(stmt).all()
     from app.features.analytics.schemas import RecentRecordOut
+
     return [
         RecentRecordOut(
             id=int(r.id),
@@ -296,6 +329,9 @@ def top_stations(
     batch_id: int | None = None,
     limit: int = 10,
 ) -> list[dict[str, Any]]:
+    """Dashboard "en iyi istasyonlar" tablosu: batch bazlı, OEE'ye göre azalan ilk
+    `limit` istasyon."""
+    # İstasyona göre grupla, ortalama OEE'ye göre azalan sırala, top-N al.
     stmt = (
         select(
             models.ProductionRecord.station_name.label("st"),
@@ -313,6 +349,7 @@ def top_stations(
         stmt = stmt.where(models.ProductionRecord.import_batch_id == batch_id)
     rows = db.execute(stmt).all()
     from app.features.analytics.schemas import TopStationOut
+
     return [
         TopStationOut(
             station_name=str(r.st),
@@ -330,10 +367,11 @@ def problem_shifts(
     batch_id: int | None = None,
     limit: int = 20,
 ) -> list[dict[str, Any]]:
+    """Dashboard "sorunlu vardiyalar": (tarih, vardiya, istasyon) gruplarından OEE'si
+    düşük veya red kaydı olanları döner."""
+    # Yeniden kullanılan agregasyon ifadeleri (hem SELECT hem HAVING'de geçecek).
     avg_oee_expr = func.avg(models.ProductionRecord.oee_recomputed)
-    rejected_count_expr = func.sum(
-        case((models.ProductionRecord.status == "rejected", 1), else_=0)
-    )
+    rejected_count_expr = func.sum(case((models.ProductionRecord.status == "rejected", 1), else_=0))
     stmt = (
         select(
             models.ProductionRecord.prod_date.label("d"),
@@ -350,12 +388,14 @@ def problem_shifts(
             models.ProductionRecord.shift,
             models.ProductionRecord.station_name,
         )
+        # "Sorunlu" tanımı: ortalama OEE < 60 VEYA en az bir red edilmiş kayıt.
         .having(
             or_(
                 avg_oee_expr < 60,
                 rejected_count_expr > 0,
             )
         )
+        # En kötü OEE en üstte (en acil sorunlar önce).
         .order_by(avg_oee_expr.asc())
         .limit(limit)
     )
@@ -363,6 +403,7 @@ def problem_shifts(
         stmt = stmt.where(models.ProductionRecord.import_batch_id == batch_id)
     rows = db.execute(stmt).all()
     from app.features.analytics.schemas import ProblemShiftOut
+
     return [
         ProblemShiftOut(
             prod_date=r.d,

@@ -1,4 +1,5 @@
 """Records service — filtre query builder + paginated list + detail."""
+
 from __future__ import annotations
 
 from typing import Any
@@ -15,6 +16,8 @@ from app.features.records.schemas import (
     RecordOut,
 )
 
+# İzin verilen sıralama alanları: dış API'den gelen sort string'i yalnız bu
+# whitelist'teki kolonlara eşlenir (rastgele/güvensiz kolon sıralaması engellenir).
 _SORT_FIELD_MAP: dict[str, Any] = {
     "id": models.ProductionRecord.id,
     "prod_date": models.ProductionRecord.prod_date,
@@ -36,6 +39,11 @@ def _apply_filter(
     flt: RecordFilter,
     issue_subq: Any | None = None,
 ) -> Any:
+    """`RecordFilter` alanlarını SQL WHERE koşullarına çevirip statement'a ekler
+    (records ve analytics ortak kullanır).
+
+    Verilmeyen (None/boş) filtreler atlanır; verilen tüm koşullar AND'lenir.
+    """
     conds: list[Any] = []
 
     rng: DateRange | None = flt.prod_date_range
@@ -52,6 +60,7 @@ def _apply_filter(
         conds.append(models.ProductionRecord.station_name.in_(flt.station_name))
 
     if flt.stock_name:
+        # Stok adı: büyük/küçük harf duyarsız kısmi eşleşme (substring arama).
         conds.append(models.ProductionRecord.stock_name.ilike(f"%{flt.stock_name}%"))
 
     oee: OeeRange | None = flt.oee_range
@@ -64,6 +73,7 @@ def _apply_filter(
     if flt.validation_status:
         conds.append(models.ProductionRecord.status.in_(flt.validation_status))
 
+    # has_issues: True -> sorunlu kayıtlar; False -> sorunsuz (0 veya hiç issue satırı = NULL).
     if flt.has_issues is True and issue_subq is not None:
         conds.append(issue_subq.c.issue_count > 0)
     elif flt.has_issues is False and issue_subq is not None:
@@ -162,22 +172,30 @@ def list_records(
 
 def get_record(db: Session, record_id: int) -> RecordDetailOut | None:
     issue_subq = _build_issue_subquery()
-    stmt = select(
-        models.ProductionRecord,
-        func.coalesce(issue_subq.c.issue_count, 0).label("issue_count"),
-    ).outerjoin(
-        issue_subq,
-        issue_subq.c.rid == models.ProductionRecord.id,
-    ).where(models.ProductionRecord.id == record_id)
+    stmt = (
+        select(
+            models.ProductionRecord,
+            func.coalesce(issue_subq.c.issue_count, 0).label("issue_count"),
+        )
+        .outerjoin(
+            issue_subq,
+            issue_subq.c.rid == models.ProductionRecord.id,
+        )
+        .where(models.ProductionRecord.id == record_id)
+    )
     row = db.execute(stmt).first()
     if row is None:
         return None
     base = _to_record_out(row[0]).model_copy(update={"issue_count": int(row[1] or 0)})
-    issues = db.execute(
-        select(models.ValidationIssue)
-        .where(models.ValidationIssue.record_id == record_id)
-        .order_by(models.ValidationIssue.id.asc())
-    ).scalars().all()
+    issues = (
+        db.execute(
+            select(models.ValidationIssue)
+            .where(models.ValidationIssue.record_id == record_id)
+            .order_by(models.ValidationIssue.id.asc())
+        )
+        .scalars()
+        .all()
+    )
     from app.features.records.schemas import IssueOut
 
     issue_outs = [
