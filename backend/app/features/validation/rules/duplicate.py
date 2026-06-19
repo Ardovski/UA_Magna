@@ -1,4 +1,11 @@
-"""Duplicate kuralları (V-D01..D04) — satır içi bilgi taşıyıcı + batch hook."""
+"""Duplicate kuralları (V-D01..D04) — satır içi bilgi taşıyıcı + batch hook.
+
+İçerik/iş-anahtarı/dosya düzeyinde tekrar tespiti: V-D01 aynı satır (row_hash)
+tekrarı, V-D02 iş anahtarı çakışması (batch-pass), V-D03 aynı MES kayıt id'si,
+V-D04 daha önce import edilmiş CSV dosyası. İlk ikisi ERROR (reddedilir); son
+ikisi WARNING (şüpheli — operatör kararı).
+"""
+
 from __future__ import annotations
 
 from typing import Any
@@ -26,7 +33,9 @@ class VD01RowHashDuplicate(Rule):
             return None
         rh = getattr(record, "row_hash", None)
         if rh and rh in seen:
-            return self.make_issue("Aynı satır (row_hash) daha önce import edilmiş.")
+            return self.make_issue(
+                "Aynı satır (row_hash) daha önce import edilmiş."
+            )  # aynı içerik → reddedilir
         if rh:
             seen.add(rh)
         return None
@@ -60,7 +69,7 @@ class VD03RecordIdDuplicate(Rule):
         if int(rid) in seen:
             return self.make_issue(
                 f"record_id={rid} başka bir satırda da kullanılmış."
-            )
+            )  # MES id çakışması
         seen[int(rid)] = int(rid)
         return None
 
@@ -78,7 +87,9 @@ class VD04FileHashDuplicate(Rule):
         if not fhash or seen_files is None:
             return None
         if fhash in seen_files:
-            return self.make_issue("Bu CSV daha önce import edilmiş (file_hash).")
+            return self.make_issue(
+                "Bu CSV daha önce import edilmiş (file_hash)."
+            )  # dosya tekrarı (uyarı)
         seen_files.add(fhash)
         return None
 

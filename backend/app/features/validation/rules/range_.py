@@ -1,9 +1,17 @@
-"""Aralık dışı değer kuralları (V-R01..R10)."""
+"""Aralık dışı değer kuralları (V-R01..R10).
+
+Sayısal alanların beklenen aralıkları dışına çıkmasını yakalar: A/P/Q/OEE yüzde
+aralığı (0-100), negatif üretim/fire/süre, idealin üstünde performans (şüpheli
+veya imkânsız), geçersiz vardiya (1/2/3 dışı). Performans üst sınırları ctx'ten
+(p_suspect_upper / p_impossible_upper) okunur.
+"""
+
 from __future__ import annotations
 
 from typing import Any
 
 from app.features.validation.models import (
+    Issue,
     IssueCategory,
     IssueSeverity,
     RuleContext,
@@ -13,6 +21,7 @@ from app.features.validation.rules.base import Rule
 
 
 def _pct_ok(v: Any) -> bool:
+    # Yüzde alanları 0..100 aralığında mı? (None dahil → henüz değerlendirme yapılamaz)
     return v is None or (isinstance(v, (int, float)) and 0.0 <= float(v) <= 100.0)
 
 
@@ -92,7 +101,9 @@ class VR05PerformanceSuspect(Rule):
         if v is None:
             return None
         fv = float(v)
-        if ctx.p_suspect_upper < fv <= ctx.p_impossible_upper:
+        if (
+            ctx.p_suspect_upper < fv <= ctx.p_impossible_upper
+        ):  # idealin üstü ama fiziksel olarak mümkün olabilir
             return self.make_issue(
                 f"performance={fv} idealin üstünde; şüpheli (>{ctx.p_suspect_upper})."
             )
@@ -179,7 +190,7 @@ class VR10ShiftInvalid(Rule):
         v = record.shift
         if v is None:
             return None
-        if int(v) not in (1, 2, 3):
+        if int(v) not in (1, 2, 3):  # 1=Sabah, 2=Öğle, 3=Gece — başka değer olamaz
             return self.make_issue(f"shift={v} geçerli vardiya dışı (1,2,3).")
         return None
 

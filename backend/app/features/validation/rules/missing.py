@@ -1,9 +1,16 @@
-"""Eksik/boş veri kuralları (V-M01..M07)."""
+"""Eksik/boş veri kuralları (V-M01..M07).
+
+Zorunlu alanların (record_id, prod_date, shift, station, produced_qty) ve/veya
+OEE bileşenlerinin bir kısmının boş olmasını yakalar. İlk 5'i ERROR (kayıt
+reddedilir); M06/M07 WARNING (şüpheli — operatöre bildirilir).
+"""
+
 from __future__ import annotations
 
 from typing import Any
 
 from app.features.validation.models import (
+    Issue,
     IssueCategory,
     IssueSeverity,
     RuleContext,
@@ -13,6 +20,7 @@ from app.features.validation.rules.base import Rule
 
 
 def _is_blank(value: Any) -> bool:
+    # None ya da yalnız boşluk içeren string → boş sayılır.
     return value is None or (isinstance(value, str) and value.strip() == "")
 
 
@@ -95,6 +103,7 @@ class VM06OeeComponentsMissing(Rule):
         q = record.quality
         comps = [a, p, q]
         non_null = sum(1 for v in comps if v is not None) + (1 if oee is not None else 0)
+        # 4'ünden bir kısmı (ama hepsi değil) boşsa ve yeniden hesaplanabiliyorsa uyar.
         if 0 < non_null < 4 and (oee is None or any(c is None for c in comps)):
             return self.make_issue(
                 "OEE bileşenlerinden biri eksik; formülden yeniden hesaplanabilir."
@@ -119,7 +128,7 @@ class VM07OptionalDimsMissing(Rule):
             blanks.append("work_center_name")
         if not blanks:
             return None
-        return self.make_issue(f"Opsiyonel boyut(lar) boş: {', '.join(blanks)}.")
+        return self.make_issue(f"Opsiyonel boyut(lar) boş: {', '.join(blanks)}.")  # bilgi amaçlı
 
 
 MISSING_RULES: tuple[Rule, ...] = (

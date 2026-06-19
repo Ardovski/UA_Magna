@@ -1,9 +1,17 @@
-"""Tutarsız ilişki kuralları (V-C01..C10)."""
+"""Tutarsız ilişki kuralları (V-C01..C10).
+
+Birden fazla alan arasındaki matematiksel/işsel çelişkileri yakalar: fire>üretim,
+OEE≠A·P·Q, Q≠(Üretim-Fire)/Üretim, duruş toplamları vb. Ağırlıklı olarak WARNING
+(şüpheli), ancak bariz fiziksel imkânsızlıklar (V-C01, V-C06, V-C08) ERROR →
+kayıt reddedilir.
+"""
+
 from __future__ import annotations
 
 from typing import Any
 
 from app.features.validation.models import (
+    Issue,
     IssueCategory,
     IssueSeverity,
     RuleContext,
@@ -29,7 +37,9 @@ class VC01ScrapGreaterThanProduced(Rule):
         if s is None or p is None:
             return None
         if int(s) > int(p):
-            return self.make_issue(f"Fire ({s}) üretimden ({p}) fazla.")
+            return self.make_issue(
+                f"Fire ({s}) üretimden ({p}) fazla."
+            )  # fiziksel imkânsız → reject
         return None
 
 
@@ -47,6 +57,7 @@ class VC02OeeApxAPQ(Rule):
         q = record.quality
         if None in (oee, a, p, q):
             return None
+        # OEE = A·P·Q/10000 (yüzde). tolerance_pct kadar sapma tolere edilir; üstü çelişki.
         expected = (float(a) * float(p) * float(q)) / 10000.0
         if _diff(float(oee), expected) > ctx.tolerance_pct:
             return self.make_issue(
@@ -68,7 +79,7 @@ class VC03QualityVsScrap(Rule):
         s = record.scrap_qty
         if None in (q, p, s) or int(p) == 0:
             return None
-        expected = (float(p) - float(s)) / float(p) * 100.0
+        expected = (float(p) - float(s)) / float(p) * 100.0  # Q tanımı: iyi/(iyi+hatalı)·100
         if _diff(float(q), expected) > ctx.tolerance_pct:
             return self.make_issue(
                 f"Q={q} ≠ (Üretim-Fire)/Üretim·100={expected:.2f} (tol={ctx.tolerance_pct})."
@@ -91,12 +102,11 @@ class VC04AvailabilityVsRunTime(Rule):
             return None
         denom = float(rt) + float(ud)
         if denom <= 0.0:
-            return None
+            return None  # 0/0 → bölünemez; kural burada sessiz kalır (V-M* eksik alanla uğraşır).
+        # A = Çalışma / (Çalışma + Plansız Duruş) · 100
         expected = float(rt) / denom * 100.0
         if _diff(float(a), expected) > ctx.tolerance_pct:
-            return self.make_issue(
-                f"A={a} ≠ Çalışma/(Çalışma+Plansız)·100={expected:.2f}."
-            )
+            return self.make_issue(f"A={a} ≠ Çalışma/(Çalışma+Plansız)·100={expected:.2f}.")
         return None
 
 
@@ -113,7 +123,7 @@ class VC05DownTimeBreakdown(Rule):
         ud = record.unplanned_down
         if None in (d, pd_v, ud):
             return None
-        expected = float(pd_v) + float(ud)
+        expected = float(pd_v) + float(ud)  # Toplam duruş, planlı+plansız toplamına eşit olmalı.
         if _diff(float(d), expected) > ctx.tolerance_pct:
             return self.make_issue(
                 f"Duruş={d} ≠ Planlı+Plansız={expected:.2f} (tol={ctx.tolerance_pct})."
@@ -134,7 +144,9 @@ class VC06ProducedWithoutRunTime(Rule):
         if p is None:
             return None
         if int(p) > 0 and (rt is None or float(rt) == 0.0):
-            return self.make_issue("Üretim>0 ama Çalışma Süresi=0 → imkânsız.")
+            return self.make_issue(
+                "Üretim>0 ama Çalışma Süresi=0 → imkânsız."
+            )  # çalışmadan üretim yok
         return None
 
 
@@ -169,7 +181,7 @@ class VC08Quality100WithScrap(Rule):
         if q is None or s is None:
             return None
         if float(q) >= 100.0 and int(s) > 0:
-            return self.make_issue("Q=100 ama fire>0 → çelişki.")
+            return self.make_issue("Q=100 ama fire>0 → çelişki.")  # %100 kalite + fire olmaz
         return None
 
 

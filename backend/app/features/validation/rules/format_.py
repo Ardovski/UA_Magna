@@ -1,10 +1,18 @@
-"""Format tutarsızlık kuralları (V-F01..F06)."""
+"""Format tutarsızlık kuralları (V-F01..F06).
+
+Veri format normalize edildikten sonra eski/yeni arasındaki farkı raporlar: ISO
+dışı tarih, virgül ondalık ayracı, 0-1'den 0-100'e ölçeklenen yüzde, iş emri/
+istasyon desenleri dışı değer, trim+lower uygulanan string alanlar. Çoğu INFO
+(operatöre bilgi), V-F03/V-F04 ise WARNING (şüpheli).
+"""
+
 from __future__ import annotations
 
 import re
 from typing import Any
 
 from app.features.validation.models import (
+    Issue,
     IssueCategory,
     IssueSeverity,
     RuleContext,
@@ -27,7 +35,7 @@ class VF01DateFormatMixed(Rule):
         text = raw.strip()
         if not text:
             return None
-        iso = bool(re.match(r"^\d{4}-\d{2}-\d{2}$", text))
+        iso = bool(re.match(r"^\d{4}-\d{2}-\d{2}$", text))  # ISO-8601 (YYYY-MM-DD) beklentisi
         if iso:
             return None
         if record.prod_date is None:
@@ -55,6 +63,8 @@ class VF02DecimalComma(Rule):
         ):
             raw = getattr(record, f"_raw_{n}", None)
             if isinstance(raw, str) and "," in raw:
+                # Türkçe locale'de ondalık ayracı virgül olur;
+                # sisteme nokta olarak girmesi beklenir.
                 return self.make_issue(
                     f"Ondalık ayraç virgül ({n}='{raw}') → noktaya normalize edildi."
                 )
@@ -69,7 +79,9 @@ class VF03PercentScaleInUnit(Rule):
     fields = ("availability", "performance", "quality", "oee")
 
     def check(self, record: Any, ctx: RuleContext) -> Issue | None:
-        scaled = getattr(record, "_pct_rescaled", None)
+        scaled = getattr(
+            record, "_pct_rescaled", None
+        )  # normalize adımı ölçek değişikliği yaptıysa işaretlenir
         if not scaled:
             return None
         return self.make_issue("A/P/Q değerleri 0-1 ölçeğinde → 0-100'e ölçeklendi.")
@@ -104,11 +116,13 @@ class VF05StringTrimCase(Rule):
         for n in ("station_name", "stock_name", "work_center_name"):
             raw = getattr(record, f"_raw_{n}", None)
             cur = getattr(record, n, None)
-            if isinstance(raw, str) and cur is not None:
-                if raw != cur or raw != raw.strip() or raw != raw.lower():
-                    return self.make_issue(
-                        f"{n}='{raw}' trim+lower normalize uygulandı → '{cur}'."
-                    )
+            if (
+                isinstance(raw, str)
+                and cur is not None
+                and (raw != cur or raw != raw.strip() or raw != raw.lower())
+            ):
+                # Herhangi bir normalizasyon (trim/lower/düzeltme) olduysa INFO issue üret.
+                return self.make_issue(f"{n}='{raw}' trim+lower normalize uygulandı → '{cur}'.")
         return None
 
 
@@ -124,9 +138,7 @@ class VF06StationPattern(Rule):
         if v is None or v == "":
             return None
         if not re.match(ctx.station_pattern, v):
-            return self.make_issue(
-                f"station_name='{v}' beklenen IMM-####-# desenine uymuyor."
-            )
+            return self.make_issue(f"station_name='{v}' beklenen IMM-####-# desenine uymuyor.")
         return None
 
 
